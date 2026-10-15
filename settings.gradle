@@ -1,1 +1,6 @@
+plugins {
+	// PC에 JDK 17이 없으면 Gradle이 자동으로 내려받습니다 (21, 24 등만 깔려 있어도 빌드 가능)
+	id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
 rootProject.name = 'dobong'

@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: dobong
+  profiles:
+    # 프로파일을 지정하지 않으면 local로 실행됩니다. 서버에서는 SPRING_PROFILES_ACTIVE=dev 또는 prod로 지정하세요.
+    default: local
+  datasource:
+    # dev/prod는 환경변수로만 주입합니다. 비밀번호를 파일에 적지 마세요.
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      # 테이블은 Flyway 마이그레이션으로만 만들고 바꿉니다. JPA는 엔티티와 테이블이 맞는지 검사만 합니다.
+      ddl-auto: validate
