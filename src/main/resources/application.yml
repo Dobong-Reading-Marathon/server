@@ -10,6 +10,22 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
   jpa:
+    # 응답을 다 만들 때까지 DB 연결을 붙잡아 두는 기능을 끕니다. 응답 데이터는 서비스(@Transactional) 안에서 만듭니다.
+    open-in-view: false
     hibernate:
       # 테이블은 Flyway 마이그레이션으로만 만들고 바꿉니다. JPA는 엔티티와 테이블이 맞는지 검사만 합니다.
       ddl-auto: validate
+
+server:
+  error:
+    # Spring Boot 기본값과 같지만, 누가 바꾸지 않도록 명시합니다. 오류 응답에 스택, 예외 메시지, 입력값을 넣지 않습니다.
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+    include-exception: false
+
+app:
+  cors:
+    # 서버를 호출할 수 있는 프론트 주소. 쉼표로 여러 개. 비어 있으면 다른 주소에서 오는 브라우저 요청을 모두 막습니다.
+    # dev/prod에서는 환경변수 CORS_ALLOWED_ORIGINS에 실제 프론트 주소를 넣습니다. (예: https://xxx.pages.dev)
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
