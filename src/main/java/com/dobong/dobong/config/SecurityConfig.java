@@ -12,6 +12,8 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -47,6 +49,15 @@ public class SecurityConfig {
 		};
 	}
 
+	/**
+	 * 비밀번호 해시. InitialAdminCreator와 같은 접두사 없는 BCrypt를 쓴다.
+	 * DelegatingPasswordEncoder({bcrypt} 접두사 방식)로 바꾸면 이미 저장된 관리자 해시와 맞지 않으니 바꾸지 않는다.
+	 */
+	@Bean
+	public PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
+	}
+
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
@@ -66,7 +77,8 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 						// 오류가 났을 때 Spring이 내부적으로 넘어가는 주소. 막으면 원래 오류 대신 401이 나간다
 						.requestMatchers("/error").permitAll()
-						// (로그인 없이 열 주소는 각 기능 PR에서 이 자리에 추가)
+						// 로그인 없이 열 주소 (기능이 늘면 이 자리에 추가)
+						.requestMatchers(HttpMethod.POST, "/api/auth/signup").permitAll()
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
 						.requestMatchers("/api/**").hasRole("USER")
 						.anyRequest().denyAll());
