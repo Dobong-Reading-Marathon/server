@@ -1,5 +1,7 @@
 package com.dobong.dobong.config;
 
+import com.dobong.dobong.auth.BearerTokenAuthenticationFilter;
+import com.dobong.dobong.auth.SessionService;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
@@ -15,6 +17,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -30,7 +33,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * 로그인 없이 열어야 하는 주소(가입, 로그인 등)는 각 기능 PR에서 permitAll 줄을 이 위에 추가한다
  * 나머지: 모두 거부
  *
- * CSRF 보호를 끈 이유: 로그인 정보를 쿠키가 아니라 Authorization 헤더로 보낼 예정이라,
+ * CSRF 보호를 끈 이유: 로그인 정보를 쿠키가 아니라 Authorization 헤더로 보내기 때문에,
  * 다른 사이트가 사용자 브라우저를 이용해 요청을 위조해도 로그인 정보가 자동으로 실리지 않는다.
  * 나중에 쿠키 방식으로 바꾸면 CSRF 보호를 반드시 다시 켜야 한다.
  */
@@ -59,7 +62,7 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	public SecurityFilterChain securityFilterChain(HttpSecurity http, SessionService sessionService) throws Exception {
 		http
 				.csrf(AbstractHttpConfigurer::disable)
 				.cors(Customizer.withDefaults()) // 아래 corsConfigurationSource 빈을 쓴다
@@ -78,10 +81,12 @@ public class SecurityConfig {
 						// 오류가 났을 때 Spring이 내부적으로 넘어가는 주소. 막으면 원래 오류 대신 401이 나간다
 						.requestMatchers("/error").permitAll()
 						// 로그인 없이 열 주소 (기능이 늘면 이 자리에 추가)
-						.requestMatchers(HttpMethod.POST, "/api/auth/signup").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
 						.requestMatchers("/api/**").hasRole("USER")
-						.anyRequest().denyAll());
+						.anyRequest().denyAll())
+				// Authorization: Bearer 토큰을 읽어 로그인한 참가자를 확인 (F-0102)
+				.addFilterBefore(new BearerTokenAuthenticationFilter(sessionService), UsernamePasswordAuthenticationFilter.class);
 		return http.build();
 	}
 

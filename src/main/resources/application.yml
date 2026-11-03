@@ -25,6 +25,18 @@ server:
     include-exception: false
 
 app:
+  auth:
+    # 로그인 상태 유지(체크): 30일 동안 안 쓰면 로그아웃, 계속 써도 로그인 후 최대 90일
+    remember-idle: 30d
+    remember-max: 90d
+    # 유지 안 함(체크 해제): 로그인 후 최대 12시간
+    session-max: 12h
+    # 같은 계정으로 5번 연속 틀리면 15분 잠금
+    max-failed-attempts: 5
+    lock-duration: 15m
+    # 같은 IP에서 10분 동안 로그인 30번 실패하면 잠시 차단 (도서관 와이파이처럼 여러 명이 IP를 같이 써도 버틸 만큼)
+    ip-failure-limit: 30
+    ip-failure-window: 10m
   signup:
     # 같은 IP에서 1시간에 가입 요청 30번까지 (도서관 와이파이처럼 여러 명이 IP를 같이 써도 버틸 만큼)
     ip-limit: 30
