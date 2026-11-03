@@ -82,6 +82,7 @@ public class SecurityConfig {
 						.requestMatchers("/error").permitAll()
 						// 로그인 없이 열 주소 (기능이 늘면 이 자리에 추가)
 						.requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/rounds/current").permitAll()
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
 						.requestMatchers("/api/**").hasRole("USER")
 						.anyRequest().denyAll())

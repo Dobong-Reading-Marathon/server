@@ -11,6 +11,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  flyway:
+    # 로컬에서는 시연·테스트용 회차(db/seed)도 넣음. 운영(prod) 설정에는 절대 넣지 말 것
+    locations: classpath:db/migration,classpath:db/seed
 
 logging:
   level:

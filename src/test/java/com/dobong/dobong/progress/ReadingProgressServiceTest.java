@@ -35,7 +35,8 @@ class ReadingProgressServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		roundId = insert("INSERT INTO rounds (round_no, year, start_date, end_date) VALUES (1, 2027, '2027-01-05', '2027-11-30') RETURNING id");
+		// 회차 번호 901: V6(2027년 1회차)과 시연용 회차(2026년 99회차)가 이미 DB에 있어서 겹치지 않는 번호 사용
+		roundId = insert("INSERT INTO rounds (round_no, year, start_date, end_date) VALUES (901, 2027, '2027-01-05', '2027-11-30') RETURNING id");
 		courseId = insert("INSERT INTO courses (round_id, name, target_pages, target_reviews, target_books) VALUES (?, '풀코스', 42195, 15, 120) RETURNING id", roundId);
 	}
 
