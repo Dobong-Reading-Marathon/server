@@ -96,7 +96,7 @@ class LoginIntegrationTest {
 				.formatted(phone, PASSWORD)).statusCode()).isEqualTo(201);
 
 		HttpResponse<String> wrong = login(phone, "wrongpass1", true);
-		HttpResponse<String> unknown = login("01000000000", PASSWORD, true);
+		HttpResponse<String> unknown = login(unusedPhone(), PASSWORD, true);
 		assertThat(wrong.statusCode()).isEqualTo(401);
 		assertThat(unknown.statusCode()).isEqualTo(401);
 		assertThat(wrong.body()).isEqualTo(unknown.body());
@@ -114,6 +114,15 @@ class LoginIntegrationTest {
 	private HttpResponse<String> login(String phone, String password, boolean rememberMe) throws Exception {
 		return post("/api/auth/login", null, """
 				{"phone":"%s","password":"%s","rememberMe":%s}""".formatted(phone, password, rememberMe));
+	}
+
+	// 로컬 DB에 가입된 적 없는 번호 (고정 번호를 쓰면 누군가 그 번호로 가입해 두었을 때 테스트가 깨짐)
+	private String unusedPhone() {
+		String candidate;
+		do {
+			candidate = "0108" + String.format("%07d", ThreadLocalRandom.current().nextInt(10_000_000));
+		} while (jdbc.queryForObject("SELECT count(*) FROM users WHERE phone = ?", Integer.class, candidate) > 0);
+		return candidate;
 	}
 
 	private static String token(String body) {
