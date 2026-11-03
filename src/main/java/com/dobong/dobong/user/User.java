@@ -51,6 +51,14 @@ public class User {
 	@Column(name = "must_change_password", nullable = false)
 	private boolean mustChangePassword;
 
+	// 연속 로그인 실패 횟수. 성공하면 0 (V4)
+	@Column(name = "failed_login_count", nullable = false)
+	private int failedLoginCount;
+
+	// 이 시각까지 로그인 잠금. null이면 잠기지 않음 (V4)
+	@Column(name = "locked_until")
+	private Instant lockedUntil;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
@@ -73,9 +81,18 @@ public class User {
 		user.privacyAgreedAt = now;
 		user.reminderAgreedAt = reminderAgreed ? now : null;
 		user.mustChangePassword = false;
+		user.failedLoginCount = 0;
 		user.createdAt = now;
 		user.updatedAt = now;
 		return user;
+	}
+
+	public boolean isLocked(Instant now) {
+		return lockedUntil != null && lockedUntil.isAfter(now);
+	}
+
+	public boolean hasLoginFailures() {
+		return failedLoginCount > 0 || lockedUntil != null;
 	}
 
 	@PreUpdate

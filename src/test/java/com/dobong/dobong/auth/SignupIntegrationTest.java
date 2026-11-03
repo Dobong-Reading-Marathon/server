@@ -52,6 +52,8 @@ class SignupIntegrationTest {
 
 		assertThat(res.statusCode()).isEqualTo(201);
 		assertThat(res.body()).contains("\"name\":\"홍길동\"").doesNotContain(phone).doesNotContain(PASSWORD);
+		// F-0102: 가입 직후 바로 로그인된 상태 (토큰, 내 정보)
+		assertThat(res.body()).contains("\"token\"").contains("\"user\"");
 
 		String hash = jdbc.queryForObject("SELECT password_hash FROM users WHERE phone = ?", String.class, phone);
 		assertThat(hash).startsWith("$2").doesNotContain(PASSWORD);
