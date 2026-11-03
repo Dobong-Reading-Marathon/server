@@ -5,6 +5,7 @@ import java.time.LocalDate;
 /**
  * 도서 등록 결과 응답 (F-0301).
  * 책 정보(books)와 내서재 정보(enrollment_books)를 한 번에 돌려준다.
+ * 아동도서 여부(F-0303)도 책 정보로 함께 돌려준다.
  */
 
 public record EnrollmentBookResponse (
@@ -19,7 +20,8 @@ public record EnrollmentBookResponse (
         boolean libraryOwned,
         String registrationNo,
         LocalDate loanDate,
-        LocalDate returnDate
+        LocalDate returnDate,
+        boolean children
 ){
     // Entity를 응답 DTO로 바꾼다.
     public static EnrollmentBookResponse from(EnrollmentBook eb){
@@ -35,7 +37,8 @@ public record EnrollmentBookResponse (
                 eb.isLibraryOwned(),
                 eb.getRegistrationNo(),
                 eb.getLoanDate(),
-                eb.getReturnDate()
+                eb.getReturnDate(),
+                eb.getBook().isChildren()
         );
     }
 }
