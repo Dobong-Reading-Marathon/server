@@ -9,6 +9,7 @@ import java.util.Optional;
 /**
  * 도서 등록 로직 (F-0301).
  * 책 정보(books)는 한 권당 한 번만 저장하고, 참가자별 정보는 내서재(enrollment_books)에 저장한다.
+ * 아동도서 여부는 책 정보에 함께 저장하고, 대출 권수는 소장도서만 센다.
  */
 
 @Service
@@ -36,7 +37,8 @@ public class BookService {
                     request.author(),
                     request.publisher(),
                     request.publishYear(),
-                    request.totalPages()
+                    request.totalPages(),
+                    Boolean.TRUE.equals(request.children())
             ));
         }
         // 2) 중복 확인
@@ -54,5 +56,10 @@ public class BookService {
         ));
         // 4) 응답 돌려주기 : Entity를 그대로 내보내지 않고,응답 상자로 바꿈
         return EnrollmentBookResponse.from(saved);
+    }
+    //대출 권수 : 도서관 소장 도서만 셈
+    @Transactional(readOnly = true)
+    public long countLoanBooks(Long enrollmentId){
+        return enrollmentBookRepository.countByEnrollmentIdAndLibraryOwnedTrue(enrollmentId);
     }
 }

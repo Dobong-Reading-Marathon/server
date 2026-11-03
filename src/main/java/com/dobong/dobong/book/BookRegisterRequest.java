@@ -11,6 +11,7 @@ import java.time.LocalDate;
 /**
  * 도서 수동 등록 요청 (F-0301).
  * 프론트가 보낸 값을 받는 상자이고, 빈 값이나 잘못된 형식은 여기서 걸러진다.
+ * 아동도서 여부(F-0303)는 선택값이며, 보내지 않으면 false로 처리한다.
  */
 
 public record BookRegisterRequest(
@@ -31,5 +32,8 @@ public record BookRegisterRequest(
         Boolean libraryOwned,
         String registrationNo,
         LocalDate loanDate,
-        LocalDate returnDate
+        LocalDate returnDate,
+
+        // 아동도서 여부, 보내지 않으면 false
+        Boolean children
 ) {}
