@@ -14,10 +14,9 @@ import org.springframework.util.StringUtils;
  * 관리자 계정이 하나도 없으면, 서버 시작 시 환경변수로 첫 관리자 계정을 만든다.
  * 비밀번호가 깃에 남지 않도록 SQL 마이그레이션 대신 이 방식을 쓴다.
  *
- * <ul>
- *   <li>ADMIN_LOGIN_ID, ADMIN_PASSWORD: 필수. 비밀번호는 8자 이상</li>
- *   <li>ADMIN_NAME: 선택. 기본값은 "관리자"</li>
- * </ul>
+ * - ADMIN_LOGIN_ID, ADMIN_PASSWORD: 필수. 비밀번호는 8자 이상
+ * - ADMIN_NAME: 선택. 기본값은 "관리자"
+ * 만든 계정으로 POST /api/admin/auth/login 에서 로그인 (F-0104)
  *
  * 관리자가 이미 있으면 아무것도 하지 않는다. 환경변수를 바꿔도 기존 계정의 비밀번호는 바뀌지 않는다.
  * 비밀번호는 접두사 없는 BCrypt 해시로 저장하므로, 로그인 검증에도 BCryptPasswordEncoder를 써야 한다.
