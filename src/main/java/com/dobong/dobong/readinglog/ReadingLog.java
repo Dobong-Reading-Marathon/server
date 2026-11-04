@@ -74,5 +74,16 @@ public class ReadingLog {
         this.status = ReadingLogStatus.DRAFT;
     }
 
+    // 서평 수정
+    public void updateReview(String review){
+        this.review=review;
+    }
+
+    // 서평을 수정할 수 있는 상태인가 ( 작성중 또는 수정 요청 )
+    public boolean isEditable(){
+        return status == ReadingLogStatus.DRAFT
+                || status == ReadingLogStatus.REVISION_REQUESTED;
+    }
+
 
 }

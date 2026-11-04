@@ -23,6 +23,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import com.dobong.dobong.readinglog.dto.ReviewUpdateRequest;
+import com.dobong.dobong.readinglog.dto.ReviewUpdateResponse;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.http.HttpStatus;
 
 @ExtendWith(MockitoExtension.class)
 class ReadingLogServiceTest {
@@ -139,5 +143,116 @@ class ReadingLogServiceTest {
         assertEquals("재미있었다", response.review());
         assertEquals(ReadingLog.ReadingLogStatus.DRAFT, response.status());
         verify(readingLogRepository).save(any(ReadingLog.class));
+    }
+    @Test
+    @DisplayName("DRAFT 상태의 서평을 수정하면 저장된다")
+    void updateReview_draft_success() {
+        // given: 내 기록이고 상태가 DRAFT
+        EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
+        when(enrollmentBook.getEnrollmentId()).thenReturn(10L);
+        ReadingLog log = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, null);
+        when(readingLogRepository.findById(1L)).thenReturn(Optional.of(log));
+        when(enrollmentRepository.existsByIdAndUserId(10L, 1L)).thenReturn(true);
+
+        ReviewUpdateRequest request = new ReviewUpdateRequest("재미있었다");
+
+        // when
+        ReviewUpdateResponse response = readingLogService.updateReview(1L, 1L, request);
+
+        // then: 서평이 바뀌고 글자 수가 계산된다
+        assertEquals("재미있었다", response.review());
+        assertEquals(5, response.charCount());
+        assertEquals(false, response.meetsMinLength());
+        assertEquals(ReadingLog.ReadingLogStatus.DRAFT, response.status());
+    }
+    @Test
+    @DisplayName("REVISION_REQUESTED 상태에서도 서평을 수정할 수 있다")
+    void updateReview_revisionRequested_success() {
+        EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
+        when(enrollmentBook.getEnrollmentId()).thenReturn(10L);
+        ReadingLog log = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, "처음 서평");
+        ReflectionTestUtils.setField(log, "status", ReadingLog.ReadingLogStatus.REVISION_REQUESTED);
+        when(readingLogRepository.findById(1L)).thenReturn(Optional.of(log));
+        when(enrollmentRepository.existsByIdAndUserId(10L, 1L)).thenReturn(true);
+
+        ReviewUpdateResponse response = readingLogService.updateReview(1L, 1L, new ReviewUpdateRequest("고친 서평"));
+
+        assertEquals("고친 서평", response.review());
+        assertEquals(ReadingLog.ReadingLogStatus.REVISION_REQUESTED, response.status());
+    }
+
+    @Test
+    @DisplayName("없는 기록이면 404")
+    void updateReview_notFound_throws() {
+        when(readingLogRepository.findById(1L)).thenReturn(Optional.empty());
+
+        ApiException e = assertThrows(ApiException.class,
+                () -> readingLogService.updateReview(1L, 1L, new ReviewUpdateRequest("서평")));
+
+        assertEquals(HttpStatus.NOT_FOUND, e.getStatus());
+        assertEquals("READING_LOG_NOT_FOUND", e.getCode());
+    }
+
+    @Test
+    @DisplayName("남의 기록이면 404")
+    void updateReview_notOwned_throws() {
+        EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
+        when(enrollmentBook.getEnrollmentId()).thenReturn(10L);
+        ReadingLog log = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, null);
+        when(readingLogRepository.findById(1L)).thenReturn(Optional.of(log));
+        when(enrollmentRepository.existsByIdAndUserId(10L, 1L)).thenReturn(false);
+
+        ApiException e = assertThrows(ApiException.class,
+                () -> readingLogService.updateReview(1L, 1L, new ReviewUpdateRequest("서평")));
+
+        assertEquals(HttpStatus.NOT_FOUND, e.getStatus());
+        assertEquals("READING_LOG_NOT_FOUND", e.getCode());
+    }
+
+    @Test
+    @DisplayName("SUBMITTED 상태면 409")
+    void updateReview_submitted_throws() {
+        assertNotEditable(ReadingLog.ReadingLogStatus.SUBMITTED);
+    }
+
+    @Test
+    @DisplayName("APPROVED 상태면 409")
+    void updateReview_approved_throws() {
+        assertNotEditable(ReadingLog.ReadingLogStatus.APPROVED);
+    }
+
+    @Test
+    @DisplayName("499자는 미충족, 500자는 충족")
+    void updateReview_minLengthBoundary() {
+        EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
+        when(enrollmentBook.getEnrollmentId()).thenReturn(10L);
+        ReadingLog log = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, null);
+        when(readingLogRepository.findById(1L)).thenReturn(Optional.of(log));
+        when(enrollmentRepository.existsByIdAndUserId(10L, 1L)).thenReturn(true);
+
+        ReviewUpdateResponse r499 = readingLogService.updateReview(1L, 1L, new ReviewUpdateRequest("가".repeat(499)));
+        assertEquals(499, r499.charCount());
+        assertEquals(false, r499.meetsMinLength());
+
+        ReviewUpdateResponse r500 = readingLogService.updateReview(1L, 1L, new ReviewUpdateRequest("가".repeat(500)));
+        assertEquals(500, r500.charCount());
+        assertEquals(true, r500.meetsMinLength());
+    }
+
+    // 수정 불가 상태 공통 검증: 409 + READING_LOG_NOT_EDITABLE, 서평은 그대로
+    private void assertNotEditable(ReadingLog.ReadingLogStatus status) {
+        EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
+        when(enrollmentBook.getEnrollmentId()).thenReturn(10L);
+        ReadingLog log = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, "기존 서평");
+        ReflectionTestUtils.setField(log, "status", status);
+        when(readingLogRepository.findById(1L)).thenReturn(Optional.of(log));
+        when(enrollmentRepository.existsByIdAndUserId(10L, 1L)).thenReturn(true);
+
+        ApiException e = assertThrows(ApiException.class,
+                () -> readingLogService.updateReview(1L, 1L, new ReviewUpdateRequest("바꾸려는 서평")));
+
+        assertEquals(HttpStatus.CONFLICT, e.getStatus());
+        assertEquals("READING_LOG_NOT_EDITABLE", e.getCode());
+        assertEquals("기존 서평", log.getReview());
     }
 }
