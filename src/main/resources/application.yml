@@ -37,6 +37,9 @@ app:
     # 같은 IP에서 10분 동안 로그인 30번 실패하면 잠시 차단 (도서관 와이파이처럼 여러 명이 IP를 같이 써도 버틸 만큼)
     ip-failure-limit: 30
     ip-failure-window: 10m
+  admin:
+    # 관리자 로그인(F-0104): 로그인 후 8시간 지나면 만료 (연장 없음). 잠금·IP 제한은 위 app.auth 값을 같이 씀
+    session-max: 8h
   signup:
     # 같은 IP에서 1시간에 가입 요청 30번까지 (도서관 와이파이처럼 여러 명이 IP를 같이 써도 버틸 만큼)
     ip-limit: 30

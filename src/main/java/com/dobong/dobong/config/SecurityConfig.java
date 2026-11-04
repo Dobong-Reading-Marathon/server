@@ -1,5 +1,6 @@
 package com.dobong.dobong.config;
 
+import com.dobong.dobong.admin.AdminSessionService;
 import com.dobong.dobong.auth.BearerTokenAuthenticationFilter;
 import com.dobong.dobong.auth.SessionService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -28,13 +29,12 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * 규칙은 위에서부터 차례로 적용되고, 마지막 줄에서 나머지를 모두 막는다 (기본 거부).
  * 그래서 새 API를 만들면 처음에는 막혀 있고, 아래 규칙에 맞는 주소일 때만 열린다.
  *
- * /api/admin/** : 관리자(ROLE_ADMIN)만
+ * /api/admin/** : 관리자(ROLE_ADMIN)만. 관리자 토큰은 이 주소에서만 확인됨 (BearerTokenAuthenticationFilter)
  * 그 밖의 /api/** : 로그인한 참가자(ROLE_USER)만
  * 로그인 없이 열어야 하는 주소(가입, 로그인 등)는 각 기능 PR에서 permitAll 줄을 이 위에 추가한다
  * 나머지: 모두 거부
  *
- * CSRF 보호를 끈 이유: 로그인 정보를 쿠키가 아니라 Authorization 헤더로 보내기 때문에,
- * 다른 사이트가 사용자 브라우저를 이용해 요청을 위조해도 로그인 정보가 자동으로 실리지 않는다.
+ * CSRF 보호를 끈 이유: 로그인 정보를 쿠키가 아니라 Authorization 헤더로 보내기 때문에 다른 사이트가 사용자 브라우저를 이용해 요청을 위조해도 로그인 정보가 자동으로 실리지 않는다.
  * 나중에 쿠키 방식으로 바꾸면 CSRF 보호를 반드시 다시 켜야 한다.
  */
 @Configuration
@@ -62,7 +62,8 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http, SessionService sessionService) throws Exception {
+	public SecurityFilterChain securityFilterChain(HttpSecurity http, SessionService sessionService,
+			AdminSessionService adminSessionService) throws Exception {
 		http
 				.csrf(AbstractHttpConfigurer::disable)
 				.cors(Customizer.withDefaults()) // 아래 corsConfigurationSource 빈을 쓴다
@@ -83,11 +84,14 @@ public class SecurityConfig {
 						// 로그인 없이 열 주소 (기능이 늘면 이 자리에 추가)
 						.requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/rounds/current").permitAll()
+						// 관리자 로그인 (F-0104). 아래 관리자 규칙보다 먼저 와야 함
+						.requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
 						.requestMatchers("/api/**").hasRole("USER")
 						.anyRequest().denyAll())
-				// Authorization: Bearer 토큰을 읽어 로그인한 참가자를 확인 (F-0102)
-				.addFilterBefore(new BearerTokenAuthenticationFilter(sessionService), UsernamePasswordAuthenticationFilter.class);
+				// Authorization: Bearer 토큰을 읽어 로그인한 참가자(F-0102) 또는 관리자(F-0104)를 확인
+				.addFilterBefore(new BearerTokenAuthenticationFilter(sessionService, adminSessionService),
+						UsernamePasswordAuthenticationFilter.class);
 		return http.build();
 	}
 
