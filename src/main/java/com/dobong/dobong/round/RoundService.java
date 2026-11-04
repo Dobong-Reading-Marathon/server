@@ -39,9 +39,15 @@ public class RoundService {
 	@Transactional(readOnly = true)
 	public RoundResponse current() {
 		LocalDate today = LocalDate.now(clock);
-		Round round = pickCurrent(roundRepository.findAll(), today)
+		Round round = findCurrentRound()
 				.orElseThrow(() -> ApiException.notFound("ROUND_NOT_FOUND", "진행 중인 회차가 없습니다."));
 		return toResponse(round, today);
+	}
+
+	// 현재 회차 (위 규칙 적용). 참가 신청(F-0205) 등 다른 기능에서도 같은 회차를 쓰기 위해 공개
+	@Transactional(readOnly = true)
+	public Optional<Round> findCurrentRound() {
+		return pickCurrent(roundRepository.findAll(), LocalDate.now(clock));
 	}
 
 	static Optional<Round> pickCurrent(List<Round> rounds, LocalDate today) {
