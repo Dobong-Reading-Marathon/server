@@ -1,5 +1,6 @@
 package com.dobong.dobong.calendar;
 
+import com.dobong.dobong.progress.CountedCondition;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Repository;
 /**
  * 참가 신청 하나의 기간 안 독서기록을 모두 조회한다. 집계에 들어가지 않는 기록도 counted = false로 함께 돌려준다.
  *
- * counted 조건은 ReadingProgressRepository(F-0502)의 WHERE 조건과 같아야 한다. 한쪽을 바꾸면 다른 쪽도 바꾼다.
+ * counted 조건은 누적 집계(F-0502)와 같은 {@link CountedCondition}을 쓴다.
  * (CalendarServiceTest가 두 결과가 같은지 확인한다)
  */
 @Repository
@@ -26,9 +27,8 @@ public class CalendarRepository {
 			       rl.end_page,
 			       rl.read_date,
 			       rl.status,
-			       eb.is_library_owned
-			         AND rl.end_page <= b.total_pages
-			         AND rl.read_date BETWEEN r.start_date AND r.end_date AS counted
+			       (""" + CountedCondition.SQL + """
+			) AS counted
 			FROM reading_logs rl
 			JOIN enrollment_books eb ON eb.id = rl.enrollment_book_id
 			JOIN books b             ON b.id = eb.book_id
