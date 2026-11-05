@@ -17,8 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -144,6 +143,38 @@ class ReadingLogServiceTest {
         assertEquals(ReadingLog.ReadingLogStatus.DRAFT, response.status());
         verify(readingLogRepository).save(any(ReadingLog.class));
     }
+    @Test
+    @DisplayName("서평 없이 임시저장해도 DRAFT 상태로 응답")
+    void noReview_savesAsDraft() {
+        // given: 내 도서이고, 전체 쪽수가 100쪽인 도서
+        EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
+        Book book = mock(Book.class);
+        when(enrollmentBookRepository.findById(1L)).thenReturn(Optional.of(enrollmentBook));
+        when(enrollmentBook.getEnrollmentId()).thenReturn(10L);
+        when(enrollmentRepository.existsByIdAndUserId(10L, 1L)).thenReturn(true);
+        when(enrollmentBook.getBook()).thenReturn(book);
+        when(book.getTotalPages()).thenReturn(100);
+        when(enrollmentBook.getId()).thenReturn(1L);
+        when(readingLogRepository.save(any(ReadingLog.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // 글귀와 서평이 모두 없는 요청 (임시저장)
+        ReadingLogRequest request = new ReadingLogRequest(
+                1L, 1, 30, LocalDate.now(), null, null);
+
+        // when
+        ReadingLogResponse response = readingLogService.create(1L, request);
+
+        // then: 글귀와 서평은 비어 있어도 저장되고 상태는 DRAFT
+        assertEquals(1L, response.enrollmentBookId());
+        assertEquals(1, response.startPage());
+        assertEquals(30, response.endPage());
+        assertNull(response.quote());
+        assertNull(response.review());
+        assertEquals(ReadingLog.ReadingLogStatus.DRAFT, response.status());
+        verify(readingLogRepository).save(any(ReadingLog.class));
+    }
+
     @Test
     @DisplayName("DRAFT 상태의 서평을 수정하면 저장된다")
     void updateReview_draft_success() {
