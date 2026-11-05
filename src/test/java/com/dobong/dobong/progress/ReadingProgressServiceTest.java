@@ -103,7 +103,7 @@ class ReadingProgressServiceTest {
 	}
 
 	private long enroll(String phone) {
-		long userId = insert("INSERT INTO users (name, phone, password_hash, privacy_agreed_at) VALUES ('테스트', ?, 'x', now()) RETURNING id", phone);
+		long userId = insert("INSERT INTO users (name, phone, password_hash, privacy_agreed_at, privacy_agreed_version) VALUES ('테스트', ?, 'x', now(), 1) RETURNING id", phone);
 		return insert("INSERT INTO enrollments (user_id, round_id, course_id) VALUES (?, ?, ?) RETURNING id", userId, roundId, courseId);
 	}
 

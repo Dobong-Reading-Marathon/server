@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.dobong.dobong.auth.dto.LoginResponse;
 import com.dobong.dobong.auth.dto.SignupRequest;
 import com.dobong.dobong.common.ApiException;
+import com.dobong.dobong.privacy.PrivacyPolicyService;
 import com.dobong.dobong.user.User;
 import com.dobong.dobong.user.UserRepository;
 import java.time.Clock;
@@ -44,17 +45,21 @@ class AuthServiceTest {
 	// 로그인 IP 실패 한도는 테스트를 위해 3으로
 	private final AuthProperties authProperties = new AuthProperties(Duration.ofDays(30), Duration.ofDays(90),
 			Duration.ofHours(12), 5, Duration.ofMinutes(15), 3, Duration.ofMinutes(10));
+	// 현재 처리방침 버전은 1로 가정
+	private final PrivacyPolicyService privacyPolicyService = mock(PrivacyPolicyService.class);
 	private final AuthService authService = new AuthService(userRepository, encoder, sessionService,
-			new SignupProperties(3, Duration.ofHours(1)), authProperties, Clock.fixed(NOW, ZoneId.of("Asia/Seoul")));
+			privacyPolicyService, new SignupProperties(3, Duration.ofHours(1)), authProperties,
+			Clock.fixed(NOW, ZoneId.of("Asia/Seoul")));
 
 	@BeforeEach
 	void stubSession() {
+		when(privacyPolicyService.currentVersion()).thenReturn(1);
 		when(sessionService.issue(any(), anyBoolean()))
 				.thenReturn(new SessionService.IssuedSession("token-value", NOW.plus(Duration.ofDays(30))));
 	}
 
 	private static SignupRequest request(String phone, String password) {
-		return new SignupRequest("  홍길동 ", phone, password, " D12345 ", true, null);
+		return new SignupRequest("  홍길동 ", phone, password, " D12345 ", true, null, 1);
 	}
 
 	private User savedUser() {
@@ -75,13 +80,14 @@ class AuthServiceTest {
 		assertThat(user.getPasswordHash()).isNotEqualTo(PASSWORD).startsWith("$2");
 		assertThat(encoder.matches(PASSWORD, user.getPasswordHash())).isTrue();
 		assertThat(user.getPrivacyAgreedAt()).isEqualTo(NOW);
+		assertThat(user.getPrivacyAgreedVersion()).isEqualTo(1);
 		assertThat(user.isMustChangePassword()).isFalse();
 	}
 
 	@Test
 	@DisplayName("대출회원번호가 비어 있으면 null로 저장한다")
 	void blankLoanMemberNo() {
-		authService.signup(new SignupRequest("홍길동", PHONE, PASSWORD, "  ", true, null), IP);
+		authService.signup(new SignupRequest("홍길동", PHONE, PASSWORD, "  ", true, null, 1), IP);
 
 		assertThat(savedUser().getLoanMemberNo()).isNull();
 	}
@@ -89,7 +95,7 @@ class AuthServiceTest {
 	@Test
 	@DisplayName("독서 독려 알림에 동의하면 동의 시각을 저장한다")
 	void reminderAgreed() {
-		authService.signup(new SignupRequest("홍길동", PHONE, PASSWORD, null, true, true), IP);
+		authService.signup(new SignupRequest("홍길동", PHONE, PASSWORD, null, true, true, 1), IP);
 
 		assertThat(savedUser().getReminderAgreedAt()).isEqualTo(NOW);
 	}
@@ -97,12 +103,22 @@ class AuthServiceTest {
 	@Test
 	@DisplayName("독서 독려 알림에 동의하지 않거나 값을 보내지 않으면 null")
 	void reminderNotAgreed() {
-		authService.signup(new SignupRequest("홍길동", PHONE, PASSWORD, null, true, false), IP);
-		authService.signup(new SignupRequest("홍길동", "01099998888", PASSWORD, null, true, null), IP);
+		authService.signup(new SignupRequest("홍길동", PHONE, PASSWORD, null, true, false, 1), IP);
+		authService.signup(new SignupRequest("홍길동", "01099998888", PASSWORD, null, true, null, 1), IP);
 
 		ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
 		verify(userRepository, times(2)).saveAndFlush(saved.capture());
 		assertThat(saved.getAllValues()).allSatisfy(u -> assertThat(u.getReminderAgreedAt()).isNull());
+	}
+
+	@Test
+	@DisplayName("화면에 보여 준 처리방침 버전이 현재 버전과 다르면 409이고 저장하지 않는다 (F-0103)")
+	void outdatedPrivacyPolicy() {
+		SignupRequest old = new SignupRequest("홍길동", PHONE, PASSWORD, null, true, null, 2);
+
+		assertThatThrownBy(() -> authService.signup(old, IP))
+				.isInstanceOf(ApiException.class).extracting("code").isEqualTo("PRIVACY_POLICY_OUTDATED");
+		verify(userRepository, never()).saveAndFlush(any());
 	}
 
 	@Test
@@ -166,7 +182,7 @@ class AuthServiceTest {
 	// ---------------------------------------------------------------- 로그인
 
 	private User existingUser() {
-		return User.create("홍길동", PHONE, encoder.encode(PASSWORD), null, true, NOW);
+		return User.create("홍길동", PHONE, encoder.encode(PASSWORD), null, true, 1, NOW);
 	}
 
 	@Test

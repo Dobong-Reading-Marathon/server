@@ -104,13 +104,13 @@ class SignupIntegrationTest {
 
 	private static String body(String name, String phone, String password, boolean agreed) {
 		return """
-				{"name":"%s","phone":"%s","password":"%s","privacyAgreed":%s}"""
+				{"name":"%s","phone":"%s","password":"%s","privacyAgreed":%s,"privacyPolicyVersion":1}"""
 				.formatted(name, phone, password, agreed);
 	}
 
 	private static String bodyWithReminder(String phone, boolean reminder) {
 		return """
-				{"name":"홍길동","phone":"%s","password":"%s","privacyAgreed":true,"reminderAgreed":%s}"""
+				{"name":"홍길동","phone":"%s","password":"%s","privacyAgreed":true,"privacyPolicyVersion":1,"reminderAgreed":%s}"""
 				.formatted(phone, PASSWORD, reminder);
 	}
 

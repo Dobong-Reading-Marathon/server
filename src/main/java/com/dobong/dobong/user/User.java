@@ -43,6 +43,10 @@ public class User {
 	@Column(name = "privacy_agreed_at", nullable = false)
 	private Instant privacyAgreedAt;
 
+	// 동의한 개인정보 처리방침 버전 (privacy_policies.version, V8)
+	@Column(name = "privacy_agreed_version", nullable = false)
+	private Integer privacyAgreedVersion;
+
 	// 독서 독려 알림 수신 동의 시각. null이면 동의 안 함 (V2 기준)
 	@Column(name = "reminder_agreed_at")
 	private Instant reminderAgreedAt;
@@ -70,15 +74,17 @@ public class User {
 	 *
 	 * phone은 PhoneNumbers로 정리한 값, passwordHash는 이미 해시한 값을 넣음.
 	 * reminderAgreed가 true면 알림 동의 시각을 now로 남김.
+	 * privacyPolicyVersion은 동의한 처리방침 버전 (현재 버전).
 	 */
 	public static User create(String name, String phone, String passwordHash, String loanMemberNo,
-			boolean reminderAgreed, Instant now) {
+			boolean reminderAgreed, int privacyPolicyVersion, Instant now) {
 		User user = new User();
 		user.name = name;
 		user.phone = phone;
 		user.passwordHash = passwordHash;
 		user.loanMemberNo = loanMemberNo;
 		user.privacyAgreedAt = now;
+		user.privacyAgreedVersion = privacyPolicyVersion;
 		user.reminderAgreedAt = reminderAgreed ? now : null;
 		user.mustChangePassword = false;
 		user.failedLoginCount = 0;

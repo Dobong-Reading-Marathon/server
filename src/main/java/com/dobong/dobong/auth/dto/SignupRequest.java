@@ -4,6 +4,7 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -35,11 +36,16 @@ public record SignupRequest(
 		Boolean privacyAgreed,
 
 		// 독서 독려 알림 수신 동의 (선택). 보내지 않으면 동의 안 함으로 본다
-		Boolean reminderAgreed) {
+		Boolean reminderAgreed,
+
+		// 화면에 보여 준 처리방침 버전 (GET /api/privacy-policy 의 version). 현재 버전과 다르면 409 (F-0103)
+		@NotNull(message = "개인정보 처리방침 버전이 필요합니다.")
+		@Positive(message = "개인정보 처리방침 버전이 올바르지 않습니다.")
+		Integer privacyPolicyVersion) {
 
 	@Override
 	public String toString() {
 		return "SignupRequest[name=***, phone=***, password=***, loanMemberNo=***, privacyAgreed=" + privacyAgreed
-				+ ", reminderAgreed=" + reminderAgreed + "]";
+				+ ", reminderAgreed=" + reminderAgreed + ", privacyPolicyVersion=" + privacyPolicyVersion + "]";
 	}
 }

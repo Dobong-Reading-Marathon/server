@@ -5,6 +5,7 @@ import com.dobong.dobong.auth.dto.SignupRequest;
 import com.dobong.dobong.common.ApiException;
 import com.dobong.dobong.common.FixedWindowRateLimiter;
 import com.dobong.dobong.common.PhoneNumbers;
+import com.dobong.dobong.privacy.PrivacyPolicyService;
 import com.dobong.dobong.user.MeResponse;
 import com.dobong.dobong.user.User;
 import com.dobong.dobong.user.UserRepository;
@@ -19,6 +20,7 @@ import org.springframework.util.StringUtils;
 
 /**
  * 회원가입(F-0101), 로그인·로그아웃(F-0102)
+ * 가입 시 동의한 처리방침 버전 저장(F-0103)
  *
  * 로그인 실패 문구는 하나뿐 (어느 쪽이 틀렸는지 알려 주지 않음).
  * 없는 번호여도 BCrypt 비교를 한 번 해서 응답 시간으로 가입 여부를 알아낼 수 없게 함.
@@ -33,6 +35,7 @@ public class AuthService {
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final SessionService sessionService;
+	private final PrivacyPolicyService privacyPolicyService;
 	private final AuthProperties authProperties;
 	private final Clock clock;
 	private final FixedWindowRateLimiter signupLimiter;
@@ -41,10 +44,12 @@ public class AuthService {
 	private final String dummyHash;
 
 	public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, SessionService sessionService,
-			SignupProperties signupProperties, AuthProperties authProperties, Clock clock) {
+			PrivacyPolicyService privacyPolicyService, SignupProperties signupProperties,
+			AuthProperties authProperties, Clock clock) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.sessionService = sessionService;
+		this.privacyPolicyService = privacyPolicyService;
 		this.authProperties = authProperties;
 		this.clock = clock;
 		this.signupLimiter = new FixedWindowRateLimiter(signupProperties.ipLimit(), signupProperties.ipWindow(), clock);
@@ -71,10 +76,17 @@ public class AuthService {
 			throw alreadyRegistered();
 		}
 
+		// 화면에 보여 준 처리방침이 현재 버전인지 확인 (예전 문안에 동의한 것으로 기록되지 않게)
+		int policyVersion = privacyPolicyService.currentVersion();
+		if (request.privacyPolicyVersion() != policyVersion) {
+			throw ApiException.conflict("PRIVACY_POLICY_OUTDATED",
+					"개인정보 처리방침이 바뀌었습니다. 다시 확인하고 동의해 주세요.");
+		}
+
 		String loanMemberNo = StringUtils.hasText(request.loanMemberNo()) ? request.loanMemberNo().strip() : null;
 		boolean reminderAgreed = Boolean.TRUE.equals(request.reminderAgreed());
 		User user = User.create(request.name().strip(), phone, passwordEncoder.encode(request.password()),
-				loanMemberNo, reminderAgreed, clock.instant());
+				loanMemberNo, reminderAgreed, policyVersion, clock.instant());
 		try {
 			userRepository.saveAndFlush(user);
 		} catch (DataIntegrityViolationException e) {
@@ -86,11 +98,7 @@ public class AuthService {
 		return loginResponse(user, sessionService.issue(user.getId(), true));
 	}
 
-	/**
-	 * [F-0102] 로그인
-	 *
-	 * 실패 기록(실패 횟수 증가)이 예외 때문에 롤백되지 않도록 noRollbackFor 지정.
-	 */
+	//[F-0102] 로그인. 실패 기록(실패 횟수 증가)이 예외 때문에 롤백되지 않도록 noRollbackFor 지정.
 	@Transactional(noRollbackFor = ApiException.class)
 	public LoginResponse login(String rawPhone, String password, boolean rememberMe, String clientIp) {
 		if (loginFailureLimiter.isBlocked(clientIp)) {

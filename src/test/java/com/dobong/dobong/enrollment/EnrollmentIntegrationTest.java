@@ -133,7 +133,7 @@ class EnrollmentIntegrationTest {
 		String phone = "0109" + String.format("%07d", ThreadLocalRandom.current().nextInt(10_000_000));
 		phones.add(phone);
 		HttpResponse<String> res = post("/api/auth/signup", null, """
-				{"name":"홍길동","phone":"%s","password":"%s","privacyAgreed":true}""".formatted(phone, PASSWORD));
+				{"name":"홍길동","phone":"%s","password":"%s","privacyAgreed":true,"privacyPolicyVersion":1}""".formatted(phone, PASSWORD));
 		assertThat(res.statusCode()).isEqualTo(201);
 		Matcher m = TOKEN.matcher(res.body());
 		assertThat(m.find()).as("응답에 token이 있어야 함").isTrue();

@@ -76,7 +76,7 @@ class AdminLoginIntegrationTest {
 	void tokensAreSeparated() throws Exception {
 		String adminToken = token(adminLogin(loginId, PASSWORD).body());
 		HttpResponse<String> signup = post("/api/auth/signup", null, """
-				{"name":"홍길동","phone":"%s","password":"reading2027","privacyAgreed":true}""".formatted(phone));
+				{"name":"홍길동","phone":"%s","password":"reading2027","privacyAgreed":true,"privacyPolicyVersion":1}""".formatted(phone));
 		assertThat(signup.statusCode()).isEqualTo(201);
 		String userToken = token(signup.body());
 
