@@ -12,7 +12,7 @@ import org.springframework.stereotype.Repository;
  * 집계 대상 독서기록을 조회한다.
  *
  * 쪽수와 완독은 승인 여부와 상관없이 등록된 모든 기록으로 센다. 서평만 사서 승인 조건을 건다.
- * 공통 조건: 소장도서로 체크된 책, 끝 쪽 ≤ 책 전체 쪽수, 읽은 날짜가 회차 기간 안.
+ * 공통 조건({@link CountedCondition}): 소장도서로 체크된 책, 끝 쪽 ≤ 책 전체 쪽수, 읽은 날짜가 회차 기간 안.
  */
 @Repository
 @RequiredArgsConstructor
@@ -31,10 +31,8 @@ public class ReadingProgressRepository {
 			JOIN books b             ON b.id = eb.book_id
 			JOIN enrollments e       ON e.id = eb.enrollment_id
 			JOIN rounds r            ON r.id = e.round_id
-			WHERE eb.is_library_owned
-			  AND rl.end_page <= b.total_pages
-			  AND rl.read_date BETWEEN r.start_date AND r.end_date
-			""";
+			WHERE
+			""" + CountedCondition.SQL + "\n";
 
 	private static final String ORDER = " ORDER BY eb.id, rl.start_page";
 
