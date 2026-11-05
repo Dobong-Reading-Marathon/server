@@ -51,7 +51,7 @@ class LoginIntegrationTest {
 	@DisplayName("가입 토큰으로 내 정보 200 → 로그인 → 로그아웃하면 같은 토큰은 401")
 	void signupLoginLogout() throws Exception {
 		HttpResponse<String> signup = post("/api/auth/signup", null, """
-				{"name":"홍길동","phone":"%s","password":"%s","privacyAgreed":true,"reminderAgreed":true}"""
+				{"name":"홍길동","phone":"%s","password":"%s","privacyAgreed":true,"privacyPolicyVersion":1,"reminderAgreed":true}"""
 				.formatted(phone, PASSWORD));
 		assertThat(signup.statusCode()).isEqualTo(201);
 		String signupToken = token(signup.body());
@@ -92,7 +92,7 @@ class LoginIntegrationTest {
 	@DisplayName("틀린 비밀번호와 없는 번호는 같은 응답, 5번 틀리면 맞는 비밀번호로도 429")
 	void wrongPasswordAndLockout() throws Exception {
 		assertThat(post("/api/auth/signup", null, """
-				{"name":"홍길동","phone":"%s","password":"%s","privacyAgreed":true}"""
+				{"name":"홍길동","phone":"%s","password":"%s","privacyAgreed":true,"privacyPolicyVersion":1}"""
 				.formatted(phone, PASSWORD)).statusCode()).isEqualTo(201);
 
 		HttpResponse<String> wrong = login(phone, "wrongpass1", true);

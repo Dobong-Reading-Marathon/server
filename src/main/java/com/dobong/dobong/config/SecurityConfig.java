@@ -84,6 +84,8 @@ public class SecurityConfig {
 						// 로그인 없이 열 주소 (기능이 늘면 이 자리에 추가)
 						.requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/rounds/current").permitAll()
+						// 개인정보 처리방침 전문 (F-0103). 가입 전에 봐야 함
+						.requestMatchers(HttpMethod.GET, "/api/privacy-policy").permitAll()
 						// 관리자 로그인 (F-0104). 아래 관리자 규칙보다 먼저 와야 함
 						.requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
