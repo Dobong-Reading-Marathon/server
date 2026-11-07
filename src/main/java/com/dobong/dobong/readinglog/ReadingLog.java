@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 /**
  * 독서기록 (reading_logs). 내서재 도서 한 권에 읽은 쪽 범위(시작~끝 쪽, 읽은 날짜)를 기록한다.
@@ -54,6 +55,10 @@ public class ReadingLog {
     @Column(nullable = false)
     private ReadingLogStatus status;
 
+    // 제출 일시
+    @Column
+    private OffsetDateTime submittedAt;
+
     //기록 상태 : 작성중 ->제출 -> 승인
     public enum ReadingLogStatus {
         DRAFT,               // 작성중
@@ -85,5 +90,15 @@ public class ReadingLog {
                 || status == ReadingLogStatus.REVISION_REQUESTED;
     }
 
+    // 제출할 수 있는 상태인가 ( 작성중만 )
+    public boolean isSubmittable(){
+        return status == ReadingLogStatus.DRAFT;
+    }
+
+    // 제출 처리
+    public void submit(OffsetDateTime submittedAt){
+        this.status = ReadingLogStatus.SUBMITTED;
+        this.submittedAt = submittedAt;
+    }
 
 }

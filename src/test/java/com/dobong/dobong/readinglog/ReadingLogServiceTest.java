@@ -5,8 +5,7 @@ import com.dobong.dobong.book.EnrollmentBook;
 import com.dobong.dobong.book.EnrollmentBookRepository;
 import com.dobong.dobong.common.ApiException;
 import com.dobong.dobong.enrollment.EnrollmentRepository;
-import com.dobong.dobong.readinglog.dto.ReadingLogRequest;
-import com.dobong.dobong.readinglog.dto.ReadingLogResponse;
+import com.dobong.dobong.readinglog.dto.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -22,8 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import com.dobong.dobong.readinglog.dto.ReviewUpdateRequest;
-import com.dobong.dobong.readinglog.dto.ReviewUpdateResponse;
+
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.http.HttpStatus;
 
@@ -285,5 +284,112 @@ class ReadingLogServiceTest {
         assertEquals(HttpStatus.CONFLICT, e.getStatus());
         assertEquals("READING_LOG_NOT_EDITABLE", e.getCode());
         assertEquals("기존 서평", log.getReview());
+    }
+    // 정상 제출: DRAFT 기록 여러 건을 제출하면 SUBMITTED로 바뀌고 제출 일시가 채워지는지 확인
+    @Test
+    @DisplayName("DRAFT 기록을 일괄 제출하면 SUBMITTED로 바뀌고 제출 일시가 채워진다")
+    void submit_drafts_success() {
+        // given: 내 기록 2건, 둘 다 DRAFT
+        EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
+        when(enrollmentBook.getEnrollmentId()).thenReturn(10L);
+        ReadingLog log1 = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, null);
+        ReadingLog log2 = new ReadingLog(enrollmentBook, 11, 20, LocalDate.now(), null, null);
+        ReflectionTestUtils.setField(log1, "id", 1L);
+        ReflectionTestUtils.setField(log2, "id", 2L);
+        when(readingLogRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(log1, log2));
+        when(enrollmentRepository.existsByIdAndUserId(10L, 1L)).thenReturn(true);
+
+        ReadingLogSubmitRequest request = new ReadingLogSubmitRequest(List.of(1L, 2L));
+
+        // when
+        ReadingLogSubmitResponse response = readingLogService.submit(1L, request);
+
+        // then: 상태와 제출 일시가 바뀌고, 응답에 두 기록의 번호가 담긴다
+        assertEquals(ReadingLog.ReadingLogStatus.SUBMITTED, log1.getStatus());
+        assertEquals(ReadingLog.ReadingLogStatus.SUBMITTED, log2.getStatus());
+        assertNotNull(log1.getSubmittedAt());
+        assertNotNull(log2.getSubmittedAt());
+        assertEquals(List.of(1L, 2L), response.submittedIds());
+    }
+    // 없는 기록이 섞이면 404를 던지고, 있는 기록도 제출하지 않는지 확인
+    @Test
+    @DisplayName("없는 기록이 섞여 있으면 404")
+    void submit_notFound_throws() {
+        // given: 1번, 2번을 요청했지만 DB에는 1번만 있음
+        EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
+        ReadingLog log1 = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, null);
+        ReflectionTestUtils.setField(log1, "id", 1L);
+        // 조회 결과가 요청보다 적게 나오도록 흉내 낸다
+        when(readingLogRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(log1));
+
+        ReadingLogSubmitRequest request = new ReadingLogSubmitRequest(List.of(1L, 2L));
+
+        // when: 일괄 제출
+        ApiException e = assertThrows(ApiException.class,
+                () -> readingLogService.submit(1L, request));
+
+        // then: 404 + 코드 확인, 있던 1번 기록도 제출되지 않음
+        assertEquals(HttpStatus.NOT_FOUND, e.getStatus());
+        assertEquals("READING_LOG_NOT_FOUND", e.getCode());
+        assertEquals(ReadingLog.ReadingLogStatus.DRAFT, log1.getStatus());
+        assertNull(log1.getSubmittedAt());
+    }
+    // 남의 기록이 섞이면 404를 던지고, 내 기록도 제출하지 않는지 확인
+    @Test
+    @DisplayName("남의 기록이 섞여 있으면 404")
+    void submit_notOwned_throws() {
+        // given: 1번은 내 기록(참가 신청 10), 2번은 남의 기록(참가 신청 20)
+        EnrollmentBook myBook = mock(EnrollmentBook.class);
+        EnrollmentBook otherBook = mock(EnrollmentBook.class);
+        when(myBook.getEnrollmentId()).thenReturn(10L);
+        when(otherBook.getEnrollmentId()).thenReturn(20L);
+        ReadingLog myLog = new ReadingLog(myBook, 1, 10, LocalDate.now(), null, null);
+        ReadingLog otherLog = new ReadingLog(otherBook, 1, 10, LocalDate.now(), null, null);
+        ReflectionTestUtils.setField(myLog, "id", 1L);
+        ReflectionTestUtils.setField(otherLog, "id", 2L);
+        when(readingLogRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(myLog, otherLog));
+        // 10번 참가 신청은 내 것, 20번은 내 것이 아니도록 흉내 낸다
+        when(enrollmentRepository.existsByIdAndUserId(10L, 1L)).thenReturn(true);
+        when(enrollmentRepository.existsByIdAndUserId(20L, 1L)).thenReturn(false);
+
+        ReadingLogSubmitRequest request = new ReadingLogSubmitRequest(List.of(1L, 2L));
+
+        // when: 일괄 제출
+        ApiException e = assertThrows(ApiException.class,
+                () -> readingLogService.submit(1L, request));
+
+        // then: 없는 기록과 같은 404, 내 기록(1번)도 제출되지 않음
+        assertEquals(HttpStatus.NOT_FOUND, e.getStatus());
+        assertEquals("READING_LOG_NOT_FOUND", e.getCode());
+        assertEquals(ReadingLog.ReadingLogStatus.DRAFT, myLog.getStatus());
+        assertNull(myLog.getSubmittedAt());
+    }
+    // 이미 제출된 기록이 섞이면 409를 던지고, 제출 가능한 기록도 제출하지 않는지 확인 (전체 취소)
+    @Test
+    @DisplayName("이미 제출된 기록이 섞여 있으면 409이고 아무것도 제출되지 않는다")
+    void submit_alreadySubmitted_throws() {
+        // given: 둘 다 내 기록, 1번은 DRAFT, 2번은 이미 SUBMITTED
+        EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
+        when(enrollmentBook.getEnrollmentId()).thenReturn(10L);
+        ReadingLog draftLog = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, null);
+        ReadingLog submittedLog = new ReadingLog(enrollmentBook, 11, 20, LocalDate.now(), null, null);
+        ReflectionTestUtils.setField(draftLog, "id", 1L);
+        ReflectionTestUtils.setField(submittedLog, "id", 2L);
+        // 2번 기록은 이미 제출된 상태로 만든다
+        ReflectionTestUtils.setField(submittedLog, "status", ReadingLog.ReadingLogStatus.SUBMITTED);
+        when(readingLogRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(draftLog, submittedLog));
+        when(enrollmentRepository.existsByIdAndUserId(10L, 1L)).thenReturn(true);
+
+        ReadingLogSubmitRequest request = new ReadingLogSubmitRequest(List.of(1L, 2L));
+
+        // when: 일괄 제출
+        ApiException e = assertThrows(ApiException.class,
+                () -> readingLogService.submit(1L, request));
+
+        // then: 409 + 코드 확인, DRAFT였던 1번 기록도 제출되지 않음
+        assertEquals(HttpStatus.CONFLICT, e.getStatus());
+        assertEquals("READING_LOG_NOT_SUBMITTABLE", e.getCode());
+        assertEquals(ReadingLog.ReadingLogStatus.DRAFT, draftLog.getStatus());
+        assertNull(draftLog.getSubmittedAt());
     }
 }

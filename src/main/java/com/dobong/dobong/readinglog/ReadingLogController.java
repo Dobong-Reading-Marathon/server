@@ -1,16 +1,15 @@
 package com.dobong.dobong.readinglog;
 
 import com.dobong.dobong.auth.AuthPrincipal;
-import com.dobong.dobong.readinglog.dto.ReadingLogRequest;
-import com.dobong.dobong.readinglog.dto.ReadingLogResponse;
-import com.dobong.dobong.readinglog.dto.ReviewUpdateRequest;
-import com.dobong.dobong.readinglog.dto.ReviewUpdateResponse;
+import com.dobong.dobong.readinglog.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import com.dobong.dobong.readinglog.dto.ReadingLogSubmitRequest;
+import com.dobong.dobong.readinglog.dto.ReadingLogSubmitResponse;
 
 /**
  * 독서기록 API (F-0401, F-0402).
@@ -47,5 +46,16 @@ public class ReadingLogController {
             @Valid @RequestBody ReviewUpdateRequest request){
 
         return ResponseEntity.ok(readingLogService.updateReview(principal.userId(), id, request));
+    }
+
+    // 독서기록 일괄 제출 (F-0405)
+    @PostMapping("/submit")
+    public ResponseEntity<ReadingLogSubmitResponse> submit(
+            // 로그인한 사용자
+            @AuthenticationPrincipal AuthPrincipal principal,
+            // 요청 본문 + 형식 검증
+            @Valid @RequestBody ReadingLogSubmitRequest request){
+
+        return ResponseEntity.ok(readingLogService.submit(principal.userId(), request));
     }
 }
