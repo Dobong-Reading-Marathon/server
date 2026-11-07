@@ -84,7 +84,17 @@ public class ReadingLog {
         this.review=review;
     }
 
-    // 서평을 수정할 수 있는 상태인가 ( 작성중 또는 수정 요청 )
+    // 기록 수정
+    public void updateLog(Integer startPage, Integer endPage, LocalDate readDate,
+                          String quote, String review){
+        this.startPage = startPage;
+        this.endPage = endPage;
+        this.readDate = readDate;
+        this.quote = quote;
+        this.review = review;
+    }
+
+    // 기록을 수정·삭제할 수 있는 상태
     public boolean isEditable(){
         return status == ReadingLogStatus.DRAFT
                 || status == ReadingLogStatus.REVISION_REQUESTED;
