@@ -59,6 +59,14 @@ public class ReadingLog {
     @Column
     private OffsetDateTime submittedAt;
 
+    // 사서 코멘트
+    @Column(columnDefinition = "TEXT")
+    private String librarianComment;
+
+    // 심사 시각
+    @Column
+    private OffsetDateTime reviewedAt;
+
     //기록 상태 : 작성중 ->제출 -> 승인
     public enum ReadingLogStatus {
         DRAFT,               // 작성중

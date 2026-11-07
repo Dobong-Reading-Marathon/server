@@ -83,4 +83,15 @@ public class ReadingLogController {
         return ResponseEntity.noContent().build();
     }
 
+    // 독서기록 상세 조회 (F-0407)
+    @GetMapping("/{id}")
+    public ReadingLogDetailResponse getReadingLog(
+        // 로그인한 사용자
+        @AuthenticationPrincipal AuthPrincipal principal,
+        // 주소의 {id}
+        @PathVariable Long id){
+        return readingLogService.getReadingLog(principal.userId(), id);
+    }
+
+
 }

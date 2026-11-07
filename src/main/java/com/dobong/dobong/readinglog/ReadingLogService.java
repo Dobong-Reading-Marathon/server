@@ -176,5 +176,15 @@ public class ReadingLogService {
         readingLogRepository.delete(readingLog);
     }
 
+    // 독서기록 상세 조회 (F-0407)
+    @Transactional(readOnly = true)
+    public ReadingLogDetailResponse getReadingLog(Long userId, Long readingLogId) {
+        // 1) 내 기록 조회
+        ReadingLog readingLog = getMyLog(userId, readingLogId);
+
+        // 2) 응답 돌려주기
+        return ReadingLogDetailResponse.from(readingLog);
+    }
+
 
 }
