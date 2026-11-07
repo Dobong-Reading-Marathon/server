@@ -5,7 +5,7 @@ import com.dobong.dobong.readinglog.ReadingLog;
 import java.time.LocalDate;
 
 /**
- * 독서기록 작성 응답 (F-0401)
+ * 독서기록 응답 (F-0401 작성, F-0406 수정)
  * 저장된 기록의 필요한 값만 담는다. from()으로 엔티티를 변환한다.
  */
 

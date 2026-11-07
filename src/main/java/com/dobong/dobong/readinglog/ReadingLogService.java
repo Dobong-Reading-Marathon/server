@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -25,6 +26,18 @@ public class ReadingLogService {
     private final ReadingLogRepository readingLogRepository;
     private final EnrollmentBookRepository enrollmentBookRepository;
     private final EnrollmentRepository enrollmentRepository;
+    // 내 기록 조회 ( 없는 기록과 남의 기록 -404)
+    private ReadingLog getMyLog(Long userId,Long readingLogId){
+        // 1) 기록 조회
+        ReadingLog readingLog = readingLogRepository.findById(readingLogId)
+                .orElseThrow(()->ApiException.notFound("READING_LOG_NOT_FOUND","독서기록을 찾을 수 없습니다."));
+        // 2) 내 기록인지 확인
+        if (!enrollmentRepository.existsByIdAndUserId(readingLog.getEnrollmentBook().getEnrollmentId(), userId)) {
+            throw ApiException.notFound("READING_LOG_NOT_FOUND", "독서기록을 찾을 수 없습니다.");
+        }
+        // 3) 기록 돌려주기
+        return readingLog;
+    }
 
     // 독서기록 작성 (F-0401)
     @Transactional
@@ -122,4 +135,46 @@ public class ReadingLogService {
         return new ReadingLogSubmitResponse(submittedIds);
 
     }
+    // 독서 기록 수정 ( F-0406 )
+    @Transactional
+    public ReadingLogResponse update(Long userId,Long readingLogId,ReadingLogUpdateRequest request){
+        // 1) 내 기록 조회
+        ReadingLog readingLog = getMyLog(userId,readingLogId);
+        // 2) 수정할 수 있는 상태인지 확인
+        if (!readingLog.isEditable()){
+            throw ApiException.conflict("READING_LOG_NOT_EDITABLE", "현재 상태에서는 기록을 수정할 수 없습니다.");
+        }
+        // 3) 최종 값 계산 ( 보낸 값이 없으면 기존 값 )
+        Integer startPage = request.startPage() != null ? request.startPage() : readingLog.getStartPage();
+        Integer endPage = request.endPage() != null ? request.endPage() : readingLog.getEndPage();
+        LocalDate readDate = request.readDate() != null ? request.readDate() : readingLog.getReadDate();
+        String quote = request.quote() != null ? request.quote() : readingLog.getQuote();
+        String review = request.review() != null ? request.review() : readingLog.getReview();
+        // 4) 쪽 범위 검증
+        if (endPage<startPage){
+            throw ApiException.badRequest("INVALID_PAGE_RANGE","끝 쪽수는 시작 쪽수보다 작을 수 없습니다.");
+        }
+        if (endPage>readingLog.getEnrollmentBook().getBook().getTotalPages()){
+            throw ApiException.badRequest("PAGE_EXCEEDS_TOTAL", "끝 쪽이 전체 쪽수를 넘을 수 없습니다.");
+        }
+        // 5) 기록 수정 ( 변경 감지로 저장됨 )
+        readingLog.updateLog(startPage,endPage,readDate,quote,review);
+        // 6) 응답 돌려주기
+        return ReadingLogResponse.from(readingLog);
+    }
+
+    // 독서 기록 삭제 (F-0406)
+    @Transactional
+    public void delete(Long userId, Long readingLogId){
+        // 1) 내 기록 조회
+        ReadingLog readingLog = getMyLog(userId, readingLogId);
+        // 2) 삭제할 수 있는 상태인지 확인
+        if (!readingLog.isEditable()){
+            throw ApiException.conflict("READING_LOG_NOT_EDITABLE", "현재 상태에서는 기록을 삭제할 수 없습니다.");
+        }
+        // 3) 기록 삭제
+        readingLogRepository.delete(readingLog);
+    }
+
+
 }

@@ -58,4 +58,29 @@ public class ReadingLogController {
 
         return ResponseEntity.ok(readingLogService.submit(principal.userId(), request));
     }
+
+    // 독서기록 수정 (F-0406)
+    @PatchMapping("/{id}")
+    public ResponseEntity <ReadingLogResponse> update(
+            // 로그인한 사용자
+            @AuthenticationPrincipal AuthPrincipal principal,
+            // 주소의 {id}
+            @PathVariable Long id,
+            // 요청 본문 + 형식 검증
+            @Valid @RequestBody ReadingLogUpdateRequest request){
+
+        return ResponseEntity.ok(readingLogService.update(principal.userId(), id, request));
+    }
+
+    // 독서기록 삭제 (F-0406)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(
+            // 로그인한 사용자
+            @AuthenticationPrincipal AuthPrincipal principal,
+            // 주소의 {id}
+            @PathVariable Long id){
+        readingLogService.delete(principal.userId(), id);
+        return ResponseEntity.noContent().build();
+    }
+
 }
