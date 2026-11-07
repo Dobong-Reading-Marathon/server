@@ -59,6 +59,14 @@ public class ReadingLog {
     @Column
     private OffsetDateTime submittedAt;
 
+    // 사서 코멘트
+    @Column(columnDefinition = "TEXT")
+    private String librarianComment;
+
+    // 심사 시각
+    @Column
+    private OffsetDateTime reviewedAt;
+
     //기록 상태 : 작성중 ->제출 -> 승인
     public enum ReadingLogStatus {
         DRAFT,               // 작성중
@@ -100,9 +108,10 @@ public class ReadingLog {
                 || status == ReadingLogStatus.REVISION_REQUESTED;
     }
 
-    // 제출할 수 있는 상태인가 ( 작성중만 )
+    // 제출할 수 있는 상태인가 ( 작성중, 보완요청 )
     public boolean isSubmittable(){
-        return status == ReadingLogStatus.DRAFT;
+        return status == ReadingLogStatus.DRAFT
+                || status == ReadingLogStatus.REVISION_REQUESTED;
     }
 
     // 제출 처리
