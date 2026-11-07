@@ -108,9 +108,10 @@ public class ReadingLog {
                 || status == ReadingLogStatus.REVISION_REQUESTED;
     }
 
-    // 제출할 수 있는 상태인가 ( 작성중만 )
+    // 제출할 수 있는 상태인가 ( 작성중, 보완요청 )
     public boolean isSubmittable(){
-        return status == ReadingLogStatus.DRAFT;
+        return status == ReadingLogStatus.DRAFT
+                || status == ReadingLogStatus.REVISION_REQUESTED;
     }
 
     // 제출 처리
