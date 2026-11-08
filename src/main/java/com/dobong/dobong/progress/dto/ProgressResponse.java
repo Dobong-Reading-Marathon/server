@@ -53,7 +53,7 @@ public record ProgressResponse(
 	 */
 	public record GoalInfo(int current, int target, int remaining, int percent) {
 
-		static GoalInfo from(Goal goal) {
+		public static GoalInfo from(Goal goal) {
 			return new GoalInfo(goal.current(), goal.target(), goal.remaining(), goal.percent());
 		}
 	}
