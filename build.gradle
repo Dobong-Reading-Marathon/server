@@ -24,6 +24,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	// 명단 다운로드(F-0804) 엑셀 파일. Spring Boot가 버전을 관리하지 않아 직접 적는다
+	implementation 'org.apache.poi:poi-ooxml:5.5.1'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.postgresql:postgresql'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'

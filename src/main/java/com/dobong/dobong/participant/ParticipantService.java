@@ -6,6 +6,7 @@ import com.dobong.dobong.participant.dto.ParticipantPageResponse;
 import com.dobong.dobong.participant.dto.ParticipantResponse;
 import com.dobong.dobong.progress.ReadingProgress;
 import com.dobong.dobong.progress.ReadingProgressService;
+import com.dobong.dobong.round.Round;
 import com.dobong.dobong.round.RoundRepository;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +54,15 @@ public class ParticipantService {
 		List<ParticipantResponse> content = all.subList(from, to).stream().map(ParticipantResponse::from).toList();
 		int totalPages = (all.size() + size - 1) / size;
 		return new ParticipantPageResponse(roundId, page, size, all.size(), totalPages, content);
+	}
+
+	/** 명단 다운로드 (F-0804). 필터는 참가자 목록과 같고, 페이지 없이 조건에 맞는 참가자를 모두 넣는다 */
+	public ParticipantExport export(long roundId, ParticipantFilter filter) {
+		Round round = roundRepository.findById(roundId)
+				.orElseThrow(() -> ApiException.notFound("ROUND_NOT_FOUND", "회차를 찾을 수 없습니다."));
+		List<Participant> participants = findAll(roundId, filter);
+		String fileName = "participants-%d-%d.xlsx".formatted(round.getYear(), round.getRoundNo());
+		return new ParticipantExport(fileName, ParticipantExcel.write(participants), participants.size());
 	}
 
 	/** 조건에 맞는 참가자 전체를 참가 신청 순서로. 명단 다운로드(F-0804)는 페이지 없이 이걸 쓴다 */

@@ -59,6 +59,15 @@ class SecurityConfigTest {
 	}
 
 	@Test
+	@DisplayName("허용한 프론트 주소에는 파일 이름 헤더(Content-Disposition)를 읽을 수 있게 노출한다")
+	void corsExposesContentDisposition() throws Exception {
+		HttpResponse<String> res = send(HttpRequest.newBuilder(uri("/api/anything")).GET().header("Origin", ALLOWED).build());
+
+		assertThat(res.headers().firstValue("Access-Control-Expose-Headers"))
+				.hasValueSatisfying(v -> assertThat(v).containsIgnoringCase("Content-Disposition"));
+	}
+
+	@Test
 	@DisplayName("허용하지 않은 주소의 CORS 사전 확인은 거부한다")
 	void corsOtherOriginRejected() throws Exception {
 		HttpResponse<String> res = send(preflight("https://evil.example"));

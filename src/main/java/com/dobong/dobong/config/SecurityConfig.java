@@ -103,6 +103,8 @@ public class SecurityConfig {
 		config.setAllowedOrigins(properties.allowedOrigins());
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 		config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+		// 명단 다운로드(F-0804)의 파일 이름. 노출하지 않으면 화면(JavaScript)에서 이 헤더를 읽을 수 없다
+		config.setExposedHeaders(List.of("Content-Disposition"));
 		config.setAllowCredentials(false); // 쿠키를 쓰지 않으므로 끈다
 		config.setMaxAge(3600L);           // 사전 확인 결과를 브라우저가 1시간 기억
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
