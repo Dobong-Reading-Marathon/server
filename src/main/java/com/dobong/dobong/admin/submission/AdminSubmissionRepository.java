@@ -1,6 +1,7 @@
 package com.dobong.dobong.admin.submission;
 
 import com.dobong.dobong.readinglog.ReadingLog;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
@@ -8,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface AdminSubmissionRepository extends Repository<ReadingLog, Long> {
 
@@ -52,4 +54,39 @@ public interface AdminSubmissionRepository extends Repository<ReadingLog, Long> 
     @Query(value = "SELECT COUNT(*) FROM reading_logs WHERE status = 'SUBMITTED'",
             nativeQuery = true)
     long countPending();
+
+    // [02 추가] 승인: 심사 대기(SUBMITTED)인 건만 가능
+    @Modifying
+    @Query(value = """
+            UPDATE reading_logs
+               SET status = 'APPROVED', reviewed_by = :adminId, reviewed_at = now(),
+                   librarian_comment = NULL, updated_at = now()
+             WHERE id = :id AND status = 'SUBMITTED'
+            """, nativeQuery = true)
+    int approve(@Param("id") Long id, @Param("adminId") Long adminId);
+
+    // [02 추가] 보완요청: 심사 대기인 건만 가능, 사유 저장
+    @Modifying
+    @Query(value = """
+            UPDATE reading_logs
+               SET status = 'REVISION_REQUESTED', reviewed_by = :adminId, reviewed_at = now(),
+                   librarian_comment = :comment, updated_at = now()
+             WHERE id = :id AND status = 'SUBMITTED'
+            """, nativeQuery = true)
+    int requestRevision(@Param("id") Long id, @Param("adminId") Long adminId,
+                        @Param("comment") String comment);
+
+    // [02 추가] 승인 취소: 승인된 건만 가능, 심사 대기로 되돌림
+    @Modifying
+    @Query(value = """
+            UPDATE reading_logs
+               SET status = 'SUBMITTED', reviewed_by = NULL, reviewed_at = NULL,
+                   updated_at = now()
+             WHERE id = :id AND status = 'APPROVED'
+            """, nativeQuery = true)
+    int cancelApproval(@Param("id") Long id);
+
+    // [02 추가] 0건 갱신됐을 때 "없는 기록"인지 "상태가 안 맞는 기록"인지 구분용
+    @Query(value = "SELECT status FROM reading_logs WHERE id = :id", nativeQuery = true)
+    Optional<String> findStatus(@Param("id") Long id);
 }
