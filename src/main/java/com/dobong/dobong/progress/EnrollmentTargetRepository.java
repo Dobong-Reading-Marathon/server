@@ -16,8 +16,12 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class EnrollmentTargetRepository {
 
-	private static final String SELECT = """
-			SELECT e.id AS enrollment_id,
+	/**
+	 * {@link EnrollmentTarget}을 만드는 SELECT 열 목록. 참가자 목록(F-0801)도 같은 열을 쓴다.
+	 * 쓰는 쪽 SQL은 테이블 별칭을 enrollments e, rounds r, courses c로 맞춰야 한다.
+	 */
+	public static final String COLUMNS = """
+			e.id AS enrollment_id,
 			       r.id AS round_id,
 			       r.year,
 			       r.round_no,
@@ -31,13 +35,16 @@ public class EnrollmentTargetRepository {
 			       (SELECT count(*)
 			          FROM enrollment_books eb
 			         WHERE eb.enrollment_id = e.id
-			           AND eb.is_library_owned) AS library_books
+			           AND eb.is_library_owned) AS library_books""";
+
+	private static final String SELECT = "SELECT " + COLUMNS + """
+
 			FROM enrollments e
 			JOIN rounds r  ON r.id = e.round_id
 			JOIN courses c ON c.id = e.course_id
 			""";
 
-	private static final RowMapper<EnrollmentTarget> ROW_MAPPER = (rs, rowNum) -> new EnrollmentTarget(
+	public static final RowMapper<EnrollmentTarget> ROW_MAPPER = (rs, rowNum) -> new EnrollmentTarget(
 			rs.getLong("enrollment_id"),
 			rs.getLong("round_id"),
 			rs.getInt("year"),
