@@ -31,6 +31,15 @@ public class ReadingProgressService {
 	}
 
 	/**
+	 * 참가자 한 명의 책별 집계 (키: 등록 도서 id). 사용자별 기록 조회(F-0802)가 쓴다.
+	 * 집계 대상 기록이 없는 책은 들어 있지 않으므로, 쓰는 쪽에서 {@link BookProgress#empty(long)}로 채운다.
+	 * enrollmentId가 누구의 것인지 확인하지 않는다 (관리자 전용).
+	 */
+	public Map<Long, BookProgress> getBookProgress(long enrollmentId) {
+		return ReadingProgressCalculator.calculateBooks(repository.findByEnrollment(enrollmentId));
+	}
+
+	/**
 	 * 회차 전체 참가자의 집계 (키: 참가 신청 id).
 	 * 집계 대상 기록이 없는 참가자는 들어 있지 않으므로, 쓰는 쪽에서 {@link ReadingProgress#empty(long)}로 채운다.
 	 */

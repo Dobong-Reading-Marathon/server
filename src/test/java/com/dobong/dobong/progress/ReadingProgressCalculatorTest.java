@@ -67,5 +67,27 @@ class ReadingProgressCalculatorTest {
 	@DisplayName("기록이 없으면 결과가 비어 있다")
 	void emptyRows() {
 		assertThat(ReadingProgressCalculator.calculate(List.of())).isEmpty();
+		assertThat(ReadingProgressCalculator.calculateBooks(List.of())).isEmpty();
+	}
+
+	@Test
+	@DisplayName("책별 값을 구하고, 그 합은 참가자 합산과 같다")
+	void booksSumToEnrollment() {
+		List<ReadingLogRow> rows = List.of(
+				log(1, 10, 300, 1, 150, false),
+				log(1, 10, 300, 151, 300, true),
+				log(1, 20, 200, 1, 120, false),
+				log(1, 20, 200, 100, 150, false));
+
+		Map<Long, BookProgress> books = ReadingProgressCalculator.calculateBooks(rows);
+
+		assertThat(books).containsOnlyKeys(10L, 20L);
+		assertThat(books.get(10L)).isEqualTo(new BookProgress(10, 300, true, true));
+		assertThat(books.get(20L)).isEqualTo(new BookProgress(20, 150, false, false));
+
+		ReadingProgress total = ReadingProgressCalculator.calculate(rows).get(1L);
+		assertThat(books.values().stream().mapToInt(BookProgress::readPages).sum()).isEqualTo(total.readPages());
+		assertThat(books.values().stream().filter(BookProgress::completed).count()).isEqualTo(total.completedBooks());
+		assertThat(books.values().stream().filter(BookProgress::reviewCounted).count()).isEqualTo(total.reviewCount());
 	}
 }
