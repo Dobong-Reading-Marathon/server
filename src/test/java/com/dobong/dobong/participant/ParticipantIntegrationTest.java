@@ -2,6 +2,7 @@ package com.dobong.dobong.participant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -9,6 +10,8 @@ import java.net.http.HttpResponse;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -122,6 +125,44 @@ class ParticipantIntegrationTest {
 	}
 
 	@Test
+	@DisplayName("명단 다운로드: 관리자는 xlsx 파일, 없는 회차는 JSON 404, 참가자 토큰은 401")
+	void export() throws Exception {
+		String userToken = signup(phone);
+		String adminToken = adminLogin();
+		long courseId = jdbc.queryForObject("INSERT INTO courses (round_id, name, target_pages, target_reviews, target_books) VALUES (?, '하프코스', 17500, 10, 50) RETURNING id",
+				Long.class, roundId);
+		jdbc.update("INSERT INTO enrollments (user_id, round_id, course_id) SELECT id, ?, ? FROM users WHERE phone = ?", roundId, courseId, phone);
+		int roundNo = jdbc.queryForObject("SELECT round_no FROM rounds WHERE id = ?", Integer.class, roundId);
+
+		String path = "/api/admin/rounds/" + roundId + "/enrollments/export";
+		HttpResponse<byte[]> file = getBytes(path, adminToken);
+		assertThat(file.statusCode()).isEqualTo(200);
+		assertThat(file.headers().firstValue("Content-Type")).hasValueSatisfying(v -> assertThat(v).startsWith(ParticipantController.XLSX.toString()));
+		assertThat(file.headers().firstValue("Content-Disposition"))
+				.hasValue("attachment; filename=\"participants-2995-" + roundNo + ".xlsx\"");
+		assertThat(file.headers().firstValue("Cache-Control")).hasValueSatisfying(v -> assertThat(v).contains("no-store"));
+
+		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(file.body()))) {
+			Sheet sheet = workbook.getSheetAt(0);
+			assertThat(sheet.getLastRowNum()).isEqualTo(1);
+			assertThat(sheet.getRow(1).getCell(2).getStringCellValue())
+					.isEqualTo(phone.substring(0, 3) + "-" + phone.substring(3, 7) + "-" + phone.substring(7));
+		}
+
+		// 필터는 참가자 목록과 같다
+		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(getBytes(path + "?status=COMPLETED", adminToken).body()))) {
+			assertThat(workbook.getSheetAt(0).getLastRowNum()).isZero();
+		}
+
+		HttpResponse<String> noRound = get("/api/admin/rounds/" + Long.MAX_VALUE + "/enrollments/export", adminToken);
+		assertThat(noRound.statusCode()).isEqualTo(404);
+		assertThat(noRound.headers().firstValue("Content-Type")).hasValueSatisfying(v -> assertThat(v).contains("application/json"));
+		assertThat(noRound.body()).contains("ROUND_NOT_FOUND");
+		assertThat(get(path + "?status=WRONG", adminToken).statusCode()).isEqualTo(400);
+		assertThat(get(path, userToken).statusCode()).isEqualTo(401);
+	}
+
+	@Test
 	@DisplayName("로그인하지 않으면 401")
 	void unauthorized() throws Exception {
 		assertThat(get("/api/admin/rounds/" + roundId + "/enrollments", null).statusCode()).isEqualTo(401);
@@ -153,6 +194,14 @@ class ParticipantIntegrationTest {
 			b.header("Authorization", "Bearer " + token);
 		}
 		return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
+	}
+
+	private HttpResponse<byte[]> getBytes(String path, String token) throws Exception {
+		HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+				.header("Authorization", "Bearer " + token)
+				.GET()
+				.build();
+		return http.send(request, HttpResponse.BodyHandlers.ofByteArray());
 	}
 
 	private HttpResponse<String> post(String path, String json) throws Exception {
