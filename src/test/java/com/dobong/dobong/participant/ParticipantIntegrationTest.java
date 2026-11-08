@@ -94,9 +94,38 @@ class ParticipantIntegrationTest {
 	}
 
 	@Test
+	@DisplayName("사용자별 기록 조회: 관리자는 200, 없는 참가 신청은 404, 숫자가 아니면 400, 참가자 토큰은 401")
+	void detail() throws Exception {
+		String userToken = signup(phone);
+		String adminToken = adminLogin();
+		long courseId = jdbc.queryForObject("INSERT INTO courses (round_id, name, target_pages, target_reviews, target_books) VALUES (?, '하프코스', 17500, 10, 50) RETURNING id",
+				Long.class, roundId);
+		long enrollment = jdbc.queryForObject("INSERT INTO enrollments (user_id, round_id, course_id) SELECT id, ?, ? FROM users WHERE phone = ? RETURNING id",
+				Long.class, roundId, courseId, phone);
+
+		String path = "/api/admin/enrollments/" + enrollment;
+		HttpResponse<String> detail = get(path, adminToken);
+		assertThat(detail.statusCode()).isEqualTo(200);
+		assertThat(detail.body())
+				.contains("\"enrollmentId\":" + enrollment)
+				.contains("\"user\":{")
+				.contains("\"phone\":\"" + phone + "\"")
+				.contains("\"progress\":{\"pages\":{\"current\":0,\"target\":17500,\"remaining\":17500,\"percent\":0}")
+				.contains("\"books\":[]")
+				.doesNotContain("password");
+
+		HttpResponse<String> notFound = get("/api/admin/enrollments/" + Long.MAX_VALUE, adminToken);
+		assertThat(notFound.statusCode()).isEqualTo(404);
+		assertThat(notFound.body()).contains("ENROLLMENT_NOT_FOUND");
+		assertThat(get("/api/admin/enrollments/abc", adminToken).statusCode()).isEqualTo(400);
+		assertThat(get(path, userToken).statusCode()).isEqualTo(401);
+	}
+
+	@Test
 	@DisplayName("로그인하지 않으면 401")
 	void unauthorized() throws Exception {
 		assertThat(get("/api/admin/rounds/" + roundId + "/enrollments", null).statusCode()).isEqualTo(401);
+		assertThat(get("/api/admin/enrollments/1", null).statusCode()).isEqualTo(401);
 	}
 
 	// ------------------------------------------------------------ helpers

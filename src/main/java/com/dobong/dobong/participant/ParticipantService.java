@@ -1,6 +1,7 @@
 package com.dobong.dobong.participant;
 
 import com.dobong.dobong.common.ApiException;
+import com.dobong.dobong.participant.dto.EnrollmentDetailResponse;
 import com.dobong.dobong.participant.dto.ParticipantPageResponse;
 import com.dobong.dobong.participant.dto.ParticipantResponse;
 import com.dobong.dobong.progress.ReadingProgress;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 관리자 참가자 관리 (F-0801 참가자 목록, F-0804 명단 다운로드)
+ * 관리자 참가자 관리 (F-0801 참가자 목록, F-0802 사용자별 기록 조회, F-0804 명단 다운로드)
  */
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,18 @@ public class ParticipantService {
 	private final RoundRepository roundRepository;
 	private final ParticipantRepository participantRepository;
 	private final ReadingProgressService readingProgressService;
+	private final EnrollmentBookDetailRepository enrollmentBookDetailRepository;
+
+	/** 참가자 한 명의 정보, 누적 집계, 등록 도서별 기록 전체 (F-0802). 없는 참가 신청은 404 */
+	public EnrollmentDetailResponse getDetail(long enrollmentId) {
+		ParticipantRow row = participantRepository.findById(enrollmentId)
+				.orElseThrow(() -> ApiException.notFound("ENROLLMENT_NOT_FOUND", "참가 신청을 찾을 수 없습니다."));
+		Participant participant = Participant.of(row, readingProgressService.getProgress(enrollmentId));
+		return EnrollmentDetailResponse.of(participant,
+				enrollmentBookDetailRepository.findBooks(enrollmentId),
+				readingProgressService.getBookProgress(enrollmentId),
+				enrollmentBookDetailRepository.findLogs(enrollmentId));
+	}
 
 	/** 참가자 목록 한 페이지. page는 0부터 */
 	public ParticipantPageResponse getPage(long roundId, ParticipantFilter filter, int page, int size) {

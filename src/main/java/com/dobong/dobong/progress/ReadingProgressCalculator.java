@@ -35,23 +35,40 @@ public final class ReadingProgressCalculator {
 		return result;
 	}
 
+	/**
+	 * 책별 값 (키: 등록 도서 id). 기록이 하나도 없는 책은 결과에 들어가지 않는다.
+	 * 참가자 합산({@link #calculate})과 같은 계산을 쓰므로, 책별 값의 합은 참가자 누적 집계와 같다.
+	 */
+	public static Map<Long, BookProgress> calculateBooks(List<ReadingLogRow> rows) {
+		Map<Long, BookProgress> result = new LinkedHashMap<>();
+		rows.stream()
+				.collect(groupingBy(ReadingLogRow::enrollmentBookId, LinkedHashMap::new, toList()))
+				.forEach((enrollmentBookId, logs) -> result.put(enrollmentBookId, book(enrollmentBookId, logs)));
+		return result;
+	}
+
 	private static ReadingProgress sumBooks(long enrollmentId, Iterable<List<ReadingLogRow>> books) {
 		int readPages = 0;
 		int completedBooks = 0;
 		int reviewCount = 0;
 
 		for (List<ReadingLogRow> logs : books) {
-			int totalPages = logs.get(0).totalPages();
-			int bookReadPages = PageRanges.countReadPages(logs.stream().map(ReadingLogRow::pageRange).toList());
-
-			readPages += bookReadPages;
-			if (bookReadPages == totalPages) {
+			BookProgress book = book(logs.get(0).enrollmentBookId(), logs);
+			readPages += book.readPages();
+			if (book.completed()) {
 				completedBooks++;
 			}
-			if (logs.stream().anyMatch(ReadingLogRow::approvedLongReview)) {
+			if (book.reviewCounted()) {
 				reviewCount++;
 			}
 		}
 		return new ReadingProgress(enrollmentId, readPages, completedBooks, reviewCount);
+	}
+
+	private static BookProgress book(long enrollmentBookId, List<ReadingLogRow> logs) {
+		int totalPages = logs.get(0).totalPages();
+		int readPages = PageRanges.countReadPages(logs.stream().map(ReadingLogRow::pageRange).toList());
+		boolean reviewCounted = logs.stream().anyMatch(ReadingLogRow::approvedLongReview);
+		return new BookProgress(enrollmentBookId, readPages, readPages == totalPages, reviewCounted);
 	}
 }

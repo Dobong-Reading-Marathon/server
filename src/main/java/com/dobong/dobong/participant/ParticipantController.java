@@ -1,5 +1,6 @@
 package com.dobong.dobong.participant;
 
+import com.dobong.dobong.participant.dto.EnrollmentDetailResponse;
 import com.dobong.dobong.participant.dto.ParticipantPageResponse;
 import com.dobong.dobong.progress.CompletionStatus;
 import lombok.RequiredArgsConstructor;
@@ -24,5 +25,11 @@ public class ParticipantController {
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "" + ParticipantService.DEFAULT_SIZE) int size) {
 		return participantService.getPage(roundId, new ParticipantFilter(keyword, courseId, status), page, size);
+	}
+
+	// [F-0802] 사용자별 기록 조회. 관리자만 (SecurityConfig의 /api/admin/** 규칙)
+	@GetMapping("/api/admin/enrollments/{enrollmentId}")
+	public EnrollmentDetailResponse detail(@PathVariable long enrollmentId) {
+		return participantService.getDetail(enrollmentId);
 	}
 }
