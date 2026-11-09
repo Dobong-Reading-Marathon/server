@@ -1,9 +1,11 @@
 package com.dobong.dobong.book;
 
+import com.dobong.dobong.auth.AuthPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,9 +26,10 @@ public class BookController {
     // POST /api/books : 책을 내서재에 등록한다.
     @PostMapping
     public ResponseEntity<EnrollmentBookResponse>register(
+            @AuthenticationPrincipal AuthPrincipal principal,
             @Valid @RequestBody BookRegisterRequest request){
 
-        EnrollmentBookResponse response = bookService.register(request);
+        EnrollmentBookResponse response = bookService.register(principal.userId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
