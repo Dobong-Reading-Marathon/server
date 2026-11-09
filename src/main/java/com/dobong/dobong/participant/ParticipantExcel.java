@@ -54,6 +54,8 @@ public final class ParticipantExcel {
 			new Column("km", p -> p.progress().readKm()),
 			new Column("인증서 번호", p -> p.row().certificateNo()),
 			new Column("완주 승인일", p -> date(p.row().approvedAt())),
+			new Column("확인한 대출 권수", p -> p.row().verifiedLoanCount()),
+			new Column("승인 사유", p -> p.row().approvalNote()),
 			new Column("신청일", p -> date(p.row().enrolledAt())));
 
 	private ParticipantExcel() {

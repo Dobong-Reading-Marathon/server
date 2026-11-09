@@ -34,7 +34,9 @@ class ParticipantExcelTest {
 	private static final int KM = 13;
 	private static final int CERTIFICATE = 14;
 	private static final int APPROVED_AT = 15;
-	private static final int ENROLLED_AT = 16;
+	private static final int VERIFIED_LOANS = 16;
+	private static final int APPROVAL_NOTE = 17;
+	private static final int ENROLLED_AT = 18;
 
 	@Test
 	@DisplayName("머리글을 고정하고, 참가자를 한 줄씩 넣는다")
@@ -92,11 +94,14 @@ class ParticipantExcelTest {
 		assertThat(inProgress.getCell(ENROLLED_AT).getStringCellValue()).isEqualTo("2027-02-02");
 		assertThat(inProgress.getCell(CERTIFICATE).getCellType()).isEqualTo(CellType.BLANK);
 		assertThat(inProgress.getCell(APPROVED_AT).getCellType()).isEqualTo(CellType.BLANK);
+		assertThat(inProgress.getCell(VERIFIED_LOANS).getCellType()).isEqualTo(CellType.BLANK);
 
 		Row completed = read(ParticipantExcel.write(List.of(participant("홍길동", "01012345678", true, 0, 0)))).getRow(1);
 		assertThat(completed.getCell(STATUS).getStringCellValue()).isEqualTo("완주");
 		assertThat(completed.getCell(CERTIFICATE).getStringCellValue()).isEqualTo("DB-2027-0001");
 		assertThat(completed.getCell(APPROVED_AT).getStringCellValue()).isEqualTo("2027-11-30");
+		assertThat(completed.getCell(VERIFIED_LOANS).getNumericCellValue()).isEqualTo(52);
+		assertThat(completed.getCell(APPROVAL_NOTE).getStringCellValue()).isEqualTo("오프라인 수첩 합산");
 	}
 
 	@Test
@@ -123,6 +128,8 @@ class ParticipantExcelTest {
 		ParticipantRow row = new ParticipantRow(target, 10, name, phone, "LM-0001",
 				completed ? "DB-2027-0001" : null,
 				completed ? Instant.parse("2027-11-30T01:00:00Z") : null,
+				completed ? 52 : null,
+				completed ? "오프라인 수첩 합산" : null,
 				Instant.parse("2027-02-01T15:30:00Z"));
 		return Participant.of(row, new ReadingProgress(15, readPages, 3, reviews));
 	}

@@ -163,6 +163,35 @@ class ParticipantIntegrationTest {
 	}
 
 	@Test
+	@DisplayName("완주 승인: 사유를 적으면 200과 인증서 번호, 다시 승인하면 409, 대출 권수가 없으면 400, 참가자 토큰은 401")
+	void approveCompletion() throws Exception {
+		String userToken = signup(phone);
+		String adminToken = adminLogin();
+		long courseId = jdbc.queryForObject("INSERT INTO courses (round_id, name, target_pages, target_reviews, target_books) VALUES (?, '하프코스', 17500, 10, 50) RETURNING id",
+				Long.class, roundId);
+		long enrollment = jdbc.queryForObject("INSERT INTO enrollments (user_id, round_id, course_id) SELECT id, ?, ? FROM users WHERE phone = ? RETURNING id",
+				Long.class, roundId, courseId, phone);
+		String path = "/api/admin/enrollments/" + enrollment + "/completion-approval";
+
+		assertThat(post(path, adminToken, "{}").statusCode()).isEqualTo(400);
+		assertThat(post(path, userToken, "{\"verifiedLoanCount\":50}").statusCode()).isEqualTo(401);
+		HttpResponse<String> notMet = post(path, adminToken, "{\"verifiedLoanCount\":50}");
+		assertThat(notMet.statusCode()).isEqualTo(409);
+		assertThat(notMet.body()).contains("COMPLETION_NOT_MET");
+
+		HttpResponse<String> approved = post(path, adminToken, "{\"verifiedLoanCount\":50,\"note\":\"오프라인 수첩 합산\"}");
+		assertThat(approved.statusCode()).isEqualTo(200);
+		assertThat(approved.body())
+				.contains("\"status\":\"COMPLETED\"")
+				.contains("\"certificateNo\":\"DB-2995-")
+				.contains("\"approvalNote\":\"오프라인 수첩 합산\"");
+
+		HttpResponse<String> again = post(path, adminToken, "{\"verifiedLoanCount\":50}");
+		assertThat(again.statusCode()).isEqualTo(409);
+		assertThat(again.body()).contains("ALREADY_COMPLETED");
+	}
+
+	@Test
 	@DisplayName("로그인하지 않으면 401")
 	void unauthorized() throws Exception {
 		assertThat(get("/api/admin/rounds/" + roundId + "/enrollments", null).statusCode()).isEqualTo(401);
@@ -202,6 +231,15 @@ class ParticipantIntegrationTest {
 				.GET()
 				.build();
 		return http.send(request, HttpResponse.BodyHandlers.ofByteArray());
+	}
+
+	private HttpResponse<String> post(String path, String token, String json) throws Exception {
+		HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+				.header("Content-Type", "application/json")
+				.header("Authorization", "Bearer " + token)
+				.POST(HttpRequest.BodyPublishers.ofString(json))
+				.build();
+		return http.send(request, HttpResponse.BodyHandlers.ofString());
 	}
 
 	private HttpResponse<String> post(String path, String json) throws Exception {

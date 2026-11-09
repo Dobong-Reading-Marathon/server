@@ -21,9 +21,11 @@ import java.util.stream.Collectors;
  * 참가자 한 명의 정보, 누적 집계, 등록 도서별 기록 전체 (F-0802). 관리자 전용.
  *
  * @param status     IN_PROGRESS(진행 중) / PENDING_APPROVAL(완주 승인 대기) / COMPLETED(완주)
- * @param approvedAt 완주 승인 시각. 승인 전에는 null
- * @param progress   누적 집계. 모양은 내 진행 현황(F-0601)과 같다
- * @param books      등록 순서. 집계에 들어가지 않는 책도 모두 넣는다
+ * @param approvedAt        완주 승인 시각. 승인 전에는 null
+ * @param verifiedLoanCount 완주 승인(F-0803) 때 사서가 확인한 대출 권수. 승인 전에는 null
+ * @param approvalNote      완주 승인 사유. 없으면 null
+ * @param progress          누적 집계. 모양은 내 진행 현황(F-0601)과 같다
+ * @param books             등록 순서. 집계에 들어가지 않는 책도 모두 넣는다
  */
 public record EnrollmentDetailResponse(
 		long enrollmentId,
@@ -33,6 +35,8 @@ public record EnrollmentDetailResponse(
 		CompletionStatus status,
 		String certificateNo,
 		Instant approvedAt,
+		Integer verifiedLoanCount,
+		String approvalNote,
 		Instant enrolledAt,
 		ProgressInfo progress,
 		List<BookDetail> books) {
@@ -53,6 +57,8 @@ public record EnrollmentDetailResponse(
 				completion.status(),
 				row.certificateNo(),
 				row.approvedAt(),
+				row.verifiedLoanCount(),
+				row.approvalNote(),
 				row.enrolledAt(),
 				new ProgressInfo(
 						GoalInfo.from(completion.pages()),

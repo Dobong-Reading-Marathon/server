@@ -29,6 +29,8 @@ public class ParticipantRepository {
 			       u.loan_member_no,
 			       e.certificate_no,
 			       e.approved_at,
+			       e.verified_loan_count,
+			       e.approval_note,
 			       e.created_at AS enrolled_at
 			FROM enrollments e
 			JOIN rounds r  ON r.id = e.round_id
@@ -49,6 +51,8 @@ public class ParticipantRepository {
 			rs.getString("loan_member_no"),
 			rs.getString("certificate_no"),
 			toInstant(rs.getTimestamp("approved_at")),
+			rs.getObject("verified_loan_count", Integer.class),
+			rs.getString("approval_note"),
 			rs.getTimestamp("enrolled_at").toInstant());
 
 	private final NamedParameterJdbcTemplate jdbcTemplate;
