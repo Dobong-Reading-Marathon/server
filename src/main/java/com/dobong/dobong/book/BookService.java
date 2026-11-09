@@ -1,6 +1,7 @@
 package com.dobong.dobong.book;
 
 import com.dobong.dobong.common.ApiException;
+import com.dobong.dobong.enrollment.EnrollmentRepository;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,9 +18,14 @@ import java.util.Optional;
 public class BookService {
     private final BookRepository bookRepository;
     private final EnrollmentBookRepository enrollmentBookRepository;
+    private final EnrollmentRepository enrollmentRepository;
 
     @Transactional
-    public EnrollmentBookResponse register(BookRegisterRequest request) {
+    public EnrollmentBookResponse register(Long userId, BookRegisterRequest request) {
+        // 0) 본인 확인 : 내 참가 신청이 아니면 없는 것과 똑같이 404 (남의 번호인지 알려주지 않음)
+        if (!enrollmentRepository.existsByIdAndUserId(request.enrollmentId(), userId)) {
+            throw ApiException.notFound("ENROLLMENT_NOT_FOUND", "참가 신청을 찾을 수 없습니다.");
+        }
         // 1) 책 준비 : 같은 책이 있으면 재사용,없으면 새로 저장
         Book book = null;
 
