@@ -108,11 +108,17 @@ public class ReadingLog {
         this.review = review;
     }
 
-    // 기록을 수정·삭제할 수 있는 상태 (작성중, 보완요청, 저장)
+    // 기록을 수정할 수 있는 상태 (작성중, 보완요청, 저장)
     public boolean isEditable(){
         return status == ReadingLogStatus.DRAFT
                 || status == ReadingLogStatus.REVISION_REQUESTED
                 || status == ReadingLogStatus.SAVED;
+    }
+
+    // 기록을 삭제할 수 있는 상태 (작성중만)
+    // 한 번 제출한 기록(저장, 심사 대기, 승인, 보완요청)은 제출 이력이 남도록 지우지 않는다.
+    public boolean isDeletable(){
+        return status == ReadingLogStatus.DRAFT;
     }
 
     // 제출할 수 있는 상태인가 (작성중, 보완요청, 저장)

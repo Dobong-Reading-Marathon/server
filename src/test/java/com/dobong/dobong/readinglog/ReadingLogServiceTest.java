@@ -458,4 +458,44 @@ class ReadingLogServiceTest {
         assertEquals(ReadingLog.ReadingLogStatus.DRAFT, draftLog.getStatus());
         assertNull(draftLog.getSubmittedAt());
     }
+
+    @Test
+    @DisplayName("작성중(DRAFT) 기록은 삭제할 수 있다")
+    void delete_draft_success() {
+        ReadingLog log = myLog(ReadingLog.ReadingLogStatus.DRAFT);
+
+        readingLogService.delete(1L, 1L);
+
+        verify(readingLogRepository).delete(log);
+    }
+
+    @Test
+    @DisplayName("한 번 제출한 기록(저장, 심사 대기, 승인, 보완요청)은 삭제할 수 없다 (409)")
+    void delete_submitted_throws() {
+        for (ReadingLog.ReadingLogStatus status : List.of(
+                ReadingLog.ReadingLogStatus.SAVED,
+                ReadingLog.ReadingLogStatus.SUBMITTED,
+                ReadingLog.ReadingLogStatus.APPROVED,
+                ReadingLog.ReadingLogStatus.REVISION_REQUESTED)) {
+            myLog(status);
+
+            ApiException e = assertThrows(ApiException.class, () -> readingLogService.delete(1L, 1L), status.name());
+
+            assertEquals(HttpStatus.CONFLICT, e.getStatus(), status.name());
+            assertEquals("READING_LOG_NOT_DELETABLE", e.getCode(), status.name());
+        }
+        verify(readingLogRepository, org.mockito.Mockito.never()).delete(any());
+    }
+
+    // 1번 사용자의 1번 기록을 주어진 상태로 만든다
+    private ReadingLog myLog(ReadingLog.ReadingLogStatus status) {
+        EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
+        when(enrollmentBook.getEnrollmentId()).thenReturn(10L);
+        ReadingLog log = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, null);
+        ReflectionTestUtils.setField(log, "id", 1L);
+        ReflectionTestUtils.setField(log, "status", status);
+        when(readingLogRepository.findById(1L)).thenReturn(Optional.of(log));
+        when(enrollmentRepository.existsByIdAndUserId(10L, 1L)).thenReturn(true);
+        return log;
+    }
 }

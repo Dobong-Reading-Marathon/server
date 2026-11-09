@@ -174,9 +174,9 @@ public class ReadingLogService {
     public void delete(Long userId, Long readingLogId){
         // 1) 내 기록 조회
         ReadingLog readingLog = getMyLog(userId, readingLogId);
-        // 2) 삭제할 수 있는 상태인지 확인
-        if (!readingLog.isEditable()){
-            throw ApiException.conflict("READING_LOG_NOT_EDITABLE", "현재 상태에서는 기록을 삭제할 수 없습니다.");
+        // 2) 삭제할 수 있는 상태인지 확인 (제출 전 기록만)
+        if (!readingLog.isDeletable()){
+            throw ApiException.conflict("READING_LOG_NOT_DELETABLE", "제출한 기록은 삭제할 수 없습니다.");
         }
         // 3) 기록 삭제
         readingLogRepository.delete(readingLog);
