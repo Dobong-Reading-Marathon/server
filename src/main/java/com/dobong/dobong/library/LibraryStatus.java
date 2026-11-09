@@ -6,5 +6,6 @@ public enum LibraryStatus {
     SUBMITTED,           // 심사 대기
     APPROVED,            // 승인
     REVISION_REQUESTED,  // 보완요청
+    SAVED,               // 저장 (서평 500자 미만으로 제출, 심사 안 함)
     NO_RECORD            // 기록 전
 }

@@ -128,11 +128,17 @@ public class ReadingLogService {
             readingLog.submit(now);
         }
 
+        // 심사로 간 기록과 저장으로 끝난 기록을 나눠서 알려 준다
         List<Long> submittedIds = readingLogs.stream()
+                .filter(readingLog -> readingLog.getStatus() == ReadingLog.ReadingLogStatus.SUBMITTED)
+                .map(ReadingLog::getId)
+                .toList();
+        List<Long> savedIds = readingLogs.stream()
+                .filter(readingLog -> readingLog.getStatus() == ReadingLog.ReadingLogStatus.SAVED)
                 .map(ReadingLog::getId)
                 .toList();
 
-        return new ReadingLogSubmitResponse(submittedIds);
+        return new ReadingLogSubmitResponse(submittedIds, savedIds);
 
     }
     // 독서 기록 수정 ( F-0406 )

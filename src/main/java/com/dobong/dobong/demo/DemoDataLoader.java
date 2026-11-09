@@ -65,18 +65,18 @@ public class DemoDataLoader implements ApplicationRunner {
 			new DemoBook("아몬드", "손원평", 264, false));
 
 	private static final List<DemoLog> LOGS = List.of(
-			new DemoLog(0, 1, 60, "APPROVED", null),
+			new DemoLog(0, 1, 60, "SAVED", null),               // 서평 없이 제출: 심사 없이 저장
 			new DemoLog(0, 61, 120, "APPROVED", REVIEW_LONG),   // 완독 + 승인된 500자 서평
-			new DemoLog(1, 1, 80, "SUBMITTED", null),
-			new DemoLog(1, 70, 150, "SUBMITTED", null),         // 앞 기록과 겹침: 겹치는 쪽은 한 번만 셈
+			new DemoLog(1, 1, 80, "SAVED", null),
+			new DemoLog(1, 70, 150, "SAVED", null),             // 앞 기록과 겹침: 겹치는 쪽은 한 번만 셈
 			new DemoLog(3, 1, 100, "DRAFT", null),              // 소장도서 아님: counted = false
-			new DemoLog(1, 151, 248, "SUBMITTED", REVIEW_SHORT), // 완독, 500자 미만 서평
-			new DemoLog(2, 1, 90, "APPROVED", null),
-			new DemoLog(2, 91, 200, "REVISION_REQUESTED", REVIEW_SHORT),
+			new DemoLog(1, 151, 248, "SAVED", REVIEW_SHORT),     // 완독, 500자 미만 서평이라 심사 없이 저장
+			new DemoLog(2, 1, 90, "SAVED", null),
+			new DemoLog(2, 91, 200, "REVISION_REQUESTED", REVIEW_LONG),
 			new DemoLog(2, 201, 320, "DRAFT", null),
 			new DemoLog(3, 101, 264, "DRAFT", null),            // 소장도서 아님: counted = false
 			new DemoLog(2, 321, 800, "DRAFT", null),            // 전체 쪽수(719) 초과: counted = false
-			new DemoLog(2, 321, 450, "SUBMITTED", null),
+			new DemoLog(2, 321, 450, "SUBMITTED", REVIEW_LONG), // 500자 서평: 심사 대기
 			new DemoLog(2, 451, 560, "DRAFT", null),
 			new DemoLog(2, 561, 600, "DRAFT", null));
 
@@ -136,8 +136,8 @@ public class DemoDataLoader implements ApplicationRunner {
 			new DemoBook("멋진 신세계", "올더스 헉슬리", 380, true),
 			new DemoBook("마당을 나온 암탉", "황선미", 200, false)); // 소장도서 아님: counted = false
 
-	/** 승인된 서평이 없는 기록의 상태. 차례로 돌아가며 붙인다 */
-	private static final List<String> PLAIN_STATUSES = List.of("APPROVED", "APPROVED", "SUBMITTED", "DRAFT");
+	/** 서평이 없는 기록의 상태. 차례로 돌아가며 붙인다 (서평 없이 제출하면 저장, 제출 전이면 작성중) */
+	private static final List<String> PLAIN_STATUSES = List.of("SAVED", "SAVED", "SAVED", "DRAFT");
 
 	/** 코스 순서와 기준 */
 	private record CourseTarget(long id, int targetPages, int targetReviews) {

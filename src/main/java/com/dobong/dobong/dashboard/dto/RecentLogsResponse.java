@@ -11,7 +11,7 @@ import java.util.List;
 public record RecentLogsResponse(long enrollmentId, List<RecentLog> logs) {
 
 	/**
-	 * @param status       DRAFT / SUBMITTED / APPROVED / REVISION_REQUESTED
+	 * @param status       DRAFT / SUBMITTED / APPROVED / REVISION_REQUESTED / SAVED
 	 * @param quote        마음에 드는 글귀. 없으면 null
 	 * @param reviewLength 서평 글자 수 (공백·줄바꿈 포함, 이모지 1자). 서평이 없으면 0
 	 * @param counted      누적 집계의 공통 조건을 만족해 집계에 들어가면 true
