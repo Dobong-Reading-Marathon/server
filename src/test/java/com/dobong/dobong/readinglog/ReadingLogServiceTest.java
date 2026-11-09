@@ -41,6 +41,9 @@ class ReadingLogServiceTest {
     @InjectMocks
     ReadingLogService readingLogService;
 
+    // 심사를 받을 수 있는 가장 짧은 서평
+    private static final String REVIEW_500 = "가".repeat(ReadingLog.MIN_REVIEW_LENGTH);
+
     @Test
     @DisplayName("없는 도서면 404")
     void bookNotFound_throwsNotFound() {
@@ -285,15 +288,15 @@ class ReadingLogServiceTest {
         assertEquals("READING_LOG_NOT_EDITABLE", e.getCode());
         assertEquals("기존 서평", log.getReview());
     }
-    // 정상 제출: DRAFT 기록 여러 건을 제출하면 SUBMITTED로 바뀌고 제출 일시가 채워지는지 확인
+    // 정상 제출: 서평 500자 이상인 DRAFT 기록 여러 건을 제출하면 SUBMITTED로 바뀌고 제출 일시가 채워지는지 확인
     @Test
-    @DisplayName("DRAFT 기록을 일괄 제출하면 SUBMITTED로 바뀌고 제출 일시가 채워진다")
+    @DisplayName("서평 500자 이상인 DRAFT 기록을 일괄 제출하면 SUBMITTED로 바뀌고 제출 일시가 채워진다")
     void submit_drafts_success() {
-        // given: 내 기록 2건, 둘 다 DRAFT
+        // given: 내 기록 2건, 둘 다 DRAFT, 서평 500자
         EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
         when(enrollmentBook.getEnrollmentId()).thenReturn(10L);
-        ReadingLog log1 = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, null);
-        ReadingLog log2 = new ReadingLog(enrollmentBook, 11, 20, LocalDate.now(), null, null);
+        ReadingLog log1 = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, REVIEW_500);
+        ReadingLog log2 = new ReadingLog(enrollmentBook, 11, 20, LocalDate.now(), null, REVIEW_500);
         ReflectionTestUtils.setField(log1, "id", 1L);
         ReflectionTestUtils.setField(log2, "id", 2L);
         when(readingLogRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(log1, log2));
@@ -310,6 +313,69 @@ class ReadingLogServiceTest {
         assertNotNull(log1.getSubmittedAt());
         assertNotNull(log2.getSubmittedAt());
         assertEquals(List.of(1L, 2L), response.submittedIds());
+        assertEquals(List.of(), response.savedIds());
+    }
+
+    @Test
+    @DisplayName("서평이 없거나 500자 미만이면 심사 없이 SAVED가 되고, 제출 일시는 비워 둔다")
+    void submit_shortReview_saved() {
+        // given: 서평 없는 기록, 499자 기록, 500자 기록
+        EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
+        when(enrollmentBook.getEnrollmentId()).thenReturn(10L);
+        ReadingLog noReview = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, null);
+        ReadingLog shortReview = new ReadingLog(enrollmentBook, 11, 20, LocalDate.now(), null, "가".repeat(499));
+        ReadingLog fullReview = new ReadingLog(enrollmentBook, 21, 30, LocalDate.now(), null, REVIEW_500);
+        ReflectionTestUtils.setField(noReview, "id", 1L);
+        ReflectionTestUtils.setField(shortReview, "id", 2L);
+        ReflectionTestUtils.setField(fullReview, "id", 3L);
+        when(readingLogRepository.findAllById(List.of(1L, 2L, 3L))).thenReturn(List.of(noReview, shortReview, fullReview));
+        when(enrollmentRepository.existsByIdAndUserId(10L, 1L)).thenReturn(true);
+
+        // when
+        ReadingLogSubmitResponse response = readingLogService.submit(1L, new ReadingLogSubmitRequest(List.of(1L, 2L, 3L)));
+
+        // then: 500자 미만은 저장, 500자는 심사 대기
+        assertEquals(ReadingLog.ReadingLogStatus.SAVED, noReview.getStatus());
+        assertEquals(ReadingLog.ReadingLogStatus.SAVED, shortReview.getStatus());
+        assertEquals(ReadingLog.ReadingLogStatus.SUBMITTED, fullReview.getStatus());
+        assertNull(noReview.getSubmittedAt());
+        assertNull(shortReview.getSubmittedAt());
+        assertNotNull(fullReview.getSubmittedAt());
+        assertEquals(List.of(3L), response.submittedIds());
+        assertEquals(List.of(1L, 2L), response.savedIds());
+    }
+
+    @Test
+    @DisplayName("이모지는 한 글자로 센다 (DB char_length와 같은 기준)")
+    void submit_countsCodePoints() {
+        EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
+        // 이모지 500개 = 500자 (UTF-16으로는 1000자)
+        ReadingLog emoji = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, "😀".repeat(499) + "가");
+        assertTrue(emoji.hasReviewForApproval());
+        ReadingLog shortEmoji = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, "😀".repeat(499));
+        assertFalse(shortEmoji.hasReviewForApproval());
+    }
+
+    @Test
+    @DisplayName("저장(SAVED) 기록은 고칠 수 있고, 서평을 500자로 고쳐 다시 제출하면 심사 대기가 된다")
+    void saved_canBeEditedAndResubmitted() {
+        // given: 서평 없이 저장된 내 기록
+        EnrollmentBook enrollmentBook = mock(EnrollmentBook.class);
+        when(enrollmentBook.getEnrollmentId()).thenReturn(10L);
+        ReadingLog log = new ReadingLog(enrollmentBook, 1, 10, LocalDate.now(), null, null);
+        ReflectionTestUtils.setField(log, "id", 1L);
+        ReflectionTestUtils.setField(log, "status", ReadingLog.ReadingLogStatus.SAVED);
+        when(readingLogRepository.findById(1L)).thenReturn(Optional.of(log));
+        when(readingLogRepository.findAllById(List.of(1L))).thenReturn(List.of(log));
+        when(enrollmentRepository.existsByIdAndUserId(10L, 1L)).thenReturn(true);
+
+        // when: 서평을 500자로 고치고 다시 제출
+        readingLogService.updateReview(1L, 1L, new ReviewUpdateRequest(REVIEW_500));
+        ReadingLogSubmitResponse response = readingLogService.submit(1L, new ReadingLogSubmitRequest(List.of(1L)));
+
+        // then
+        assertEquals(ReadingLog.ReadingLogStatus.SUBMITTED, log.getStatus());
+        assertEquals(List.of(1L), response.submittedIds());
     }
     // 없는 기록이 섞이면 404를 던지고, 있는 기록도 제출하지 않는지 확인
     @Test

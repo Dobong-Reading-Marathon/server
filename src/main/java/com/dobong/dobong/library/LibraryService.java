@@ -100,7 +100,10 @@ public class LibraryService {
         if (logs.stream().anyMatch(log -> log.getStatus() == ReadingLog.ReadingLogStatus.SUBMITTED)) {
             return LibraryStatus.SUBMITTED;
         }
-        // 위 세 가지가 없으면 모두 승인된 기록
-        return LibraryStatus.APPROVED;
+        // 위 세 가지가 없으면 모두 끝난 기록 (승인 또는 저장). 승인이 하나라도 있으면 "승인"
+        if (logs.stream().anyMatch(log -> log.getStatus() == ReadingLog.ReadingLogStatus.APPROVED)) {
+            return LibraryStatus.APPROVED;
+        }
+        return LibraryStatus.SAVED;
     }
 }

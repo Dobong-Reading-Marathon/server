@@ -32,7 +32,7 @@ public record CalendarResponse(
 	}
 
 	/**
-	 * @param status  DRAFT / SUBMITTED / APPROVED / REVISION_REQUESTED
+	 * @param status  DRAFT / SUBMITTED / APPROVED / REVISION_REQUESTED / SAVED
 	 * @param counted 누적 집계의 공통 조건을 만족해 집계에 들어가면 true
 	 */
 	public record Log(

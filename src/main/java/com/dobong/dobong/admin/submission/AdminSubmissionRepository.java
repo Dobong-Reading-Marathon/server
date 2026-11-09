@@ -40,7 +40,7 @@ public interface AdminSubmissionRepository extends Repository<ReadingLog, Long> 
             JOIN enrollments e       ON e.id = eb.enrollment_id
             JOIN users u             ON u.id = e.user_id
             JOIN books b             ON b.id = eb.book_id
-            WHERE rl.status <> 'DRAFT'
+            WHERE rl.status NOT IN ('DRAFT', 'SAVED') -- 작성중, 저장(심사 안 함)은 접수함에 넣지 않는다
               AND (CAST(:status AS varchar) IS NULL OR rl.status = CAST(:status AS varchar))
               AND (CAST(:keyword AS varchar) IS NULL
                    OR u.name LIKE CAST(:keyword AS varchar)

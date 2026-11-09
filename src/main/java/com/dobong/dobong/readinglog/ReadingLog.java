@@ -67,12 +67,18 @@ public class ReadingLog {
     @Column
     private OffsetDateTime reviewedAt;
 
-    //기록 상태 : 작성중 ->제출 -> 승인
+    // 심사를 받을 수 있는 서평 글자 수. 이보다 짧은 서평은 서평 편수에 들어가지 않는다.
+    public static final int MIN_REVIEW_LENGTH = 500;
+
+    // 기록 상태
+    // 작성중 -> 제출: 서평 500자 이상이면 SUBMITTED(심사) -> APPROVED / REVISION_REQUESTED
+    //               서평 500자 미만이면 SAVED(저장). 심사 없이 끝난 기록이고, 고쳐서 다시 제출할 수 있다
     public enum ReadingLogStatus {
         DRAFT,               // 작성중
-        SUBMITTED,           // 제출
+        SUBMITTED,           // 제출 (심사 대기)
         APPROVED,            // 승인
-        REVISION_REQUESTED   // 수정 요청
+        REVISION_REQUESTED,  // 수정 요청
+        SAVED                // 저장 (서평 500자 미만으로 제출, 심사 안 함)
     }
 
     public ReadingLog(EnrollmentBook enrollmentBook, Integer startPage,Integer endPage,
@@ -102,22 +108,34 @@ public class ReadingLog {
         this.review = review;
     }
 
-    // 기록을 수정·삭제할 수 있는 상태
+    // 기록을 수정·삭제할 수 있는 상태 (작성중, 보완요청, 저장)
     public boolean isEditable(){
         return status == ReadingLogStatus.DRAFT
-                || status == ReadingLogStatus.REVISION_REQUESTED;
+                || status == ReadingLogStatus.REVISION_REQUESTED
+                || status == ReadingLogStatus.SAVED;
     }
 
-    // 제출할 수 있는 상태인가 ( 작성중, 보완요청 )
+    // 제출할 수 있는 상태인가 (작성중, 보완요청, 저장)
+    // 저장 기록은 서평을 500자 이상으로 고친 뒤 다시 제출해서 심사를 받을 수 있다.
     public boolean isSubmittable(){
-        return status == ReadingLogStatus.DRAFT
-                || status == ReadingLogStatus.REVISION_REQUESTED;
+        return isEditable();
     }
 
-    // 제출 처리
+    // 서평이 심사를 받을 만큼 긴가 (글자 수는 코드 포인트로 센다. DB의 char_length와 같은 기준)
+    public boolean hasReviewForApproval(){
+        return review != null && review.codePointCount(0, review.length()) >= MIN_REVIEW_LENGTH;
+    }
+
+    // 제출 처리: 서평이 500자 이상이면 심사 대기, 아니면 심사 없이 저장
+    // 저장은 심사 제출이 아니므로 제출 일시를 남기지 않는다.
     public void submit(OffsetDateTime submittedAt){
-        this.status = ReadingLogStatus.SUBMITTED;
-        this.submittedAt = submittedAt;
+        if (hasReviewForApproval()) {
+            this.status = ReadingLogStatus.SUBMITTED;
+            this.submittedAt = submittedAt;
+        } else {
+            this.status = ReadingLogStatus.SAVED;
+            this.submittedAt = null;
+        }
     }
 
 }

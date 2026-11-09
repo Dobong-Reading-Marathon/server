@@ -122,7 +122,7 @@ public record EnrollmentDetailResponse(
 	/**
 	 * 독서기록 한 건
 	 *
-	 * @param status       DRAFT / SUBMITTED / APPROVED / REVISION_REQUESTED
+	 * @param status       DRAFT / SUBMITTED / APPROVED / REVISION_REQUESTED / SAVED
 	 * @param reviewLength 서평 글자 수. 서평이 없으면 0
 	 * @param counted      공통 조건(소장도서, 끝 쪽 ≤ 전체 쪽수, 회차 기간)을 만족해 집계에 들어가면 true
 	 */
