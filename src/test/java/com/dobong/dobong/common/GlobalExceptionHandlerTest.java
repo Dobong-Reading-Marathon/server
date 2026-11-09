@@ -50,6 +50,11 @@ class GlobalExceptionHandlerTest {
 			return "ok";
 		}
 
+		@GetMapping("/t/unavailable")
+		String unavailable() {
+			throw ApiException.serviceUnavailable("EXTERNAL_BOOK_API_UNAVAILABLE", "잠시 후 다시 시도해 주세요.");
+		}
+
 		@GetMapping("/t/integrity")
 		String integrity() {
 			throw new DataIntegrityViolationException("Key (phone)=(01012345678) already exists.");
@@ -72,6 +77,16 @@ class GlobalExceptionHandlerTest {
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("DUPLICATE"))
 				.andExpect(jsonPath("$.message").value("이미 있습니다."))
+				.andExpect(jsonPath("$.fieldErrors").isEmpty());
+	}
+
+	@Test
+	@DisplayName("serviceUnavailable 예외는 503과 지정한 code, message로 응답한다")
+	void serviceUnavailable() throws Exception {
+		mvc.perform(get("/t/unavailable"))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.code").value("EXTERNAL_BOOK_API_UNAVAILABLE"))
+				.andExpect(jsonPath("$.message").value("잠시 후 다시 시도해 주세요."))
 				.andExpect(jsonPath("$.fieldErrors").isEmpty());
 	}
 
