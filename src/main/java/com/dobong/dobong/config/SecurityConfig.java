@@ -1,0 +1,121 @@
+package com.dobong.dobong.config;
+
+import com.dobong.dobong.admin.AdminSessionService;
+import com.dobong.dobong.auth.BearerTokenAuthenticationFilter;
+import com.dobong.dobong.auth.SessionService;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+/**
+ * 주소별 접근 권한 (서버의 "문지기" 규칙).
+ *
+ * 규칙은 위에서부터 차례로 적용되고, 마지막 줄에서 나머지를 모두 막는다 (기본 거부).
+ * 그래서 새 API를 만들면 처음에는 막혀 있고, 아래 규칙에 맞는 주소일 때만 열린다.
+ *
+ * /api/admin/** : 관리자(ROLE_ADMIN)만. 관리자 토큰은 이 주소에서만 확인됨 (BearerTokenAuthenticationFilter)
+ * 그 밖의 /api/** : 로그인한 참가자(ROLE_USER)만
+ * 로그인 없이 열어야 하는 주소(가입, 로그인 등)는 각 기능 PR에서 permitAll 줄을 이 위에 추가한다
+ * 나머지: 모두 거부
+ *
+ * CSRF 보호를 끈 이유: 로그인 정보를 쿠키가 아니라 Authorization 헤더로 보내기 때문에 다른 사이트가 사용자 브라우저를 이용해 요청을 위조해도 로그인 정보가 자동으로 실리지 않는다.
+ * 나중에 쿠키 방식으로 바꾸면 CSRF 보호를 반드시 다시 켜야 한다.
+ */
+@Configuration
+public class SecurityConfig {
+
+	/**
+	 * Spring 기본 로그인(아이디/비밀번호 폼)은 쓰지 않는다.
+	 * 이 빈이 없으면 Spring Boot가 "user" 계정과 임시 비밀번호를 자동으로 만들어 서버 로그에 찍는다.
+	 * 로그를 볼 수 있는 사람이 그 계정을 쓸 수 있으므로 막는다.
+	 */
+	@Bean
+	public UserDetailsService userDetailsService() {
+		return username -> {
+			throw new UsernameNotFoundException("not used");
+		};
+	}
+
+	/**
+	 * 비밀번호 해시. InitialAdminCreator와 같은 접두사 없는 BCrypt를 쓴다.
+	 * DelegatingPasswordEncoder({bcrypt} 접두사 방식)로 바꾸면 이미 저장된 관리자 해시와 맞지 않으니 바꾸지 않는다.
+	 */
+	@Bean
+	public PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
+	}
+
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http, SessionService sessionService,
+			AdminSessionService adminSessionService) throws Exception {
+		http
+				.csrf(AbstractHttpConfigurer::disable)
+				.cors(Customizer.withDefaults()) // 아래 corsConfigurationSource 빈을 쓴다
+				.httpBasic(AbstractHttpConfigurer::disable)
+				.formLogin(AbstractHttpConfigurer::disable)
+				.logout(AbstractHttpConfigurer::disable)
+				.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+				.exceptionHandling(e -> e
+						.authenticationEntryPoint((req, res, ex) ->
+								writeError(res, HttpServletResponse.SC_UNAUTHORIZED, "UNAUTHORIZED", "로그인이 필요합니다."))
+						.accessDeniedHandler((req, res, ex) ->
+								writeError(res, HttpServletResponse.SC_FORBIDDEN, "FORBIDDEN", "권한이 없습니다.")))
+				.authorizeHttpRequests(auth -> auth
+						// 브라우저가 실제 요청 전에 보내는 CORS 사전 확인 요청
+						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+						// 오류가 났을 때 Spring이 내부적으로 넘어가는 주소. 막으면 원래 오류 대신 401이 나간다
+						.requestMatchers("/error").permitAll()
+						// 로그인 없이 열 주소 (기능이 늘면 이 자리에 추가)
+						.requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/rounds/current").permitAll()
+						// 개인정보 처리방침 전문 (F-0103). 가입 전에 봐야 함
+						.requestMatchers(HttpMethod.GET, "/api/privacy-policy").permitAll()
+						// 관리자 로그인 (F-0104). 아래 관리자 규칙보다 먼저 와야 함
+						.requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()
+						.requestMatchers("/api/admin/**").hasRole("ADMIN")
+						.requestMatchers("/api/**").hasRole("USER")
+						.anyRequest().denyAll())
+				// Authorization: Bearer 토큰을 읽어 로그인한 참가자(F-0102) 또는 관리자(F-0104)를 확인
+				.addFilterBefore(new BearerTokenAuthenticationFilter(sessionService, adminSessionService),
+						UsernamePasswordAuthenticationFilter.class);
+		return http.build();
+	}
+
+	@Bean
+	public CorsConfigurationSource corsConfigurationSource(CorsProperties properties) {
+		CorsConfiguration config = new CorsConfiguration();
+		config.setAllowedOrigins(properties.allowedOrigins());
+		config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+		config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+		// 명단 다운로드(F-0804)의 파일 이름. 노출하지 않으면 화면(JavaScript)에서 이 헤더를 읽을 수 없다
+		config.setExposedHeaders(List.of("Content-Disposition"));
+		config.setAllowCredentials(false); // 쿠키를 쓰지 않으므로 끈다
+		config.setMaxAge(3600L);           // 사전 확인 결과를 브라우저가 1시간 기억
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		source.registerCorsConfiguration("/api/**", config);
+		return source;
+	}
+
+	/** 401, 403을 GlobalExceptionHandler와 같은 형식으로 보낸다. 문구는 고정값만 쓴다 (사용자 입력을 넣지 않음). */
+	private static void writeError(HttpServletResponse res, int status, String code, String message) throws IOException {
+		res.setStatus(status);
+		res.setContentType("application/json;charset=UTF-8");
+		res.getWriter().write("{\"code\":\"" + code + "\",\"message\":\"" + message + "\",\"fieldErrors\":[]}");
+	}
+}

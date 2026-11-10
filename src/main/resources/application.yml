@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: dobong
+  profiles:
+    # 프로파일을 지정하지 않으면 local로 실행됩니다. 서버에서는 SPRING_PROFILES_ACTIVE=dev 또는 prod로 지정하세요.
+    default: local
+  datasource:
+    # dev/prod는 환경변수로만 주입합니다. 비밀번호를 파일에 적지 마세요.
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    # 응답을 다 만들 때까지 DB 연결을 붙잡아 두는 기능을 끕니다. 응답 데이터는 서비스(@Transactional) 안에서 만듭니다.
+    open-in-view: false
+    hibernate:
+      # 테이블은 Flyway 마이그레이션으로만 만들고 바꿉니다. JPA는 엔티티와 테이블이 맞는지 검사만 합니다.
+      ddl-auto: validate
+
+server:
+  error:
+    # Spring Boot 기본값과 같지만, 누가 바꾸지 않도록 명시합니다. 오류 응답에 스택, 예외 메시지, 입력값을 넣지 않습니다.
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+    include-exception: false
+
+app:
+  auth:
+    # 로그인 상태 유지(체크): 30일 동안 안 쓰면 로그아웃, 계속 써도 로그인 후 최대 90일
+    remember-idle: 30d
+    remember-max: 90d
+    # 유지 안 함(체크 해제): 로그인 후 최대 12시간
+    session-max: 12h
+    # 같은 계정으로 5번 연속 틀리면 15분 잠금
+    max-failed-attempts: 5
+    lock-duration: 15m
+    # 같은 IP에서 10분 동안 로그인 30번 실패하면 잠시 차단 (도서관 와이파이처럼 여러 명이 IP를 같이 써도 버틸 만큼)
+    ip-failure-limit: 30
+    ip-failure-window: 10m
+  admin:
+    # 관리자 로그인(F-0104): 로그인 후 8시간 지나면 만료 (연장 없음). 잠금·IP 제한은 위 app.auth 값을 같이 씀
+    session-max: 8h
+  signup:
+    # 같은 IP에서 1시간에 가입 요청 30번까지 (도서관 와이파이처럼 여러 명이 IP를 같이 써도 버틸 만큼)
+    ip-limit: 30
+    ip-window: 1h
+  yes24:
+    # 도서 정보 자동 입력(F-0302)에 쓰는 예스24 Open API. 키가 비어 있어도 서버는 뜨고, 검색 API만 503으로 응답합니다.
+    # 키는 환경변수 YES24_API_KEY로만 넣습니다. 파일에 적지 마세요.
+    base-url: ${YES24_API_BASE_URL:https://apis.yes24.com}
+    api-key: ${YES24_API_KEY:}
+    connect-timeout: 3s
+    read-timeout: 5s
+  cors:
+    # 서버를 호출할 수 있는 프론트 주소. 쉼표로 여러 개. 비어 있으면 다른 주소에서 오는 브라우저 요청을 모두 막습니다.
+    # dev/prod에서는 환경변수 CORS_ALLOWED_ORIGINS에 실제 프론트 주소를 넣습니다. (예: https://xxx.pages.dev)
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
