@@ -11,5 +11,6 @@ public record LibraryItemResponse(
         boolean completed,
         boolean libraryOwned,
         boolean children,
-        LibraryStatus status
-) {}
+        LibraryStatus status,
+        String coverUrl
+) {}
