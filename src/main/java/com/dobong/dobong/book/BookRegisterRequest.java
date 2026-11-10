@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
@@ -35,5 +36,9 @@ public record BookRegisterRequest(
         LocalDate returnDate,
 
         // 아동도서 여부, 보내지 않으면 false
-        Boolean children
+        Boolean children,
+
+        // 선택: 표지 주소(예스24 검색 결과). 값이 있으면 https://로 시작하고 500자 이내
+        @Size(max = Book.COVER_URL_MAX_LENGTH, message = "표지 주소는 " + Book.COVER_URL_MAX_LENGTH + "자 이내입니다.")
+        @Pattern(regexp = "^$|^https://.*", flags = Pattern.Flag.CASE_INSENSITIVE, message = "표지 주소는 https://로 시작해야 합니다.") String coverUrl
 ) {}

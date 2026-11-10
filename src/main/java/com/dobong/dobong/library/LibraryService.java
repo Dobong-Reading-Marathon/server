@@ -70,7 +70,8 @@ public class LibraryService {
                             readPages == totalPages,   // 완독
                             eb.isLibraryOwned(),
                             eb.getBook().isChildren(),
-                            resolveStatus(logs)        // 대표 상태
+                            resolveStatus(logs),       // 대표 상태
+                            eb.getBook().getCoverUrl() // 표지 (없으면 null)
                     );
                 })
                 // 추가: 검색 필터 (제목 또는 저자에 검색어 포함)
@@ -106,4 +107,4 @@ public class LibraryService {
         }
         return LibraryStatus.SAVED;
     }
-}
+}

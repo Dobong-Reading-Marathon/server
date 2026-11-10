@@ -7,6 +7,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,7 +47,7 @@ public class BookServiceTest {
                 1L ,"어린왕자","생택쥐페리",100,
                 null,null,null,
                 null,null,null,null,
-                null);
+                null,null);
 
         EnrollmentBookResponse response = bookService.register(USER_ID, request);
 
@@ -59,7 +61,7 @@ public class BookServiceTest {
                 1L ,"어린왕자","생택쥐페리",100,
                 null,null,null,
                 null,null,null,null,
-                true);
+                true,null);
 
         EnrollmentBookResponse response = bookService.register(USER_ID, request);
 
@@ -73,7 +75,7 @@ public class BookServiceTest {
                 1L ,"어린왕자","생택쥐페리",100,
                 null,null,null,
                 null,null,null,null,
-                null);
+                null,null);
 
         EnrollmentBookResponse response = bookService.register(USER_ID, request);
 
@@ -91,7 +93,7 @@ public class BookServiceTest {
                 2L ,"어린왕자","생택쥐페리",100,
                 "9788937460470",null,null,
                 null,null,null,null,
-                null);
+                null,null);
 
         assertThatThrownBy(() -> bookService.register(USER_ID, request))
                 .isInstanceOfSatisfying(ApiException.class, e -> {
@@ -110,7 +112,7 @@ public class BookServiceTest {
                 999L ,"어린왕자","생택쥐페리",100,
                 null,null,null,
                 null,null,null,null,
-                null);
+                null,null);
 
         assertThatThrownBy(() -> bookService.register(USER_ID, request))
                 .isInstanceOfSatisfying(ApiException.class, e -> {
@@ -132,5 +134,56 @@ public class BookServiceTest {
         assertThat(count).isEqualTo(2L);
     }
 
+    @Test
+    @DisplayName("표지가 있는 등록은 Book에 표지를 저장한다")
+    void registerSavesCoverUrl(){
+        BookRegisterRequest request = withCover("9788937460470", "https://image.yes24.com/a.jpg");
 
+        bookService.register(USER_ID, request);
+
+        org.mockito.ArgumentCaptor<Book> captor = org.mockito.ArgumentCaptor.forClass(Book.class);
+        verify(bookRepository).save(captor.capture());
+        assertThat(captor.getValue().getCoverUrl()).isEqualTo("https://image.yes24.com/a.jpg");
+    }
+
+    @Test
+    @DisplayName("표지가 없거나 빈 문자열이면 null로 저장한다")
+    void registerWithoutCoverStoresNull(){
+        bookService.register(USER_ID, withCover(null, null));
+        bookService.register(USER_ID, withCover(null, ""));
+
+        org.mockito.ArgumentCaptor<Book> captor = org.mockito.ArgumentCaptor.forClass(Book.class);
+        verify(bookRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+        assertThat(captor.getAllValues()).allSatisfy(b -> assertThat(b.getCoverUrl()).isNull());
+    }
+
+    @Test
+    @DisplayName("같은 ISBN의 기존 책에 표지가 없으면 새 표지로 채운다")
+    void reuseFillsMissingCover(){
+        Book existing = new Book("9788937460470","어린왕자","생택쥐페리",null,null,100,false,null);
+        when(bookRepository.findByIsbn("9788937460470")).thenReturn(Optional.of(existing));
+
+        bookService.register(USER_ID, withCover("9788937460470", "https://image.yes24.com/new.jpg"));
+
+        assertThat(existing.getCoverUrl()).isEqualTo("https://image.yes24.com/new.jpg");
+        verify(bookRepository, never()).save(any(Book.class));
+    }
+
+    @Test
+    @DisplayName("같은 ISBN의 기존 책에 표지가 이미 있으면 유지한다")
+    void reuseKeepsExistingCover(){
+        Book existing = new Book("9788937460470","어린왕자","생택쥐페리",null,null,100,false,"https://image.yes24.com/old.jpg");
+        when(bookRepository.findByIsbn("9788937460470")).thenReturn(Optional.of(existing));
+
+        bookService.register(USER_ID, withCover("9788937460470", "https://image.yes24.com/new.jpg"));
+
+        assertThat(existing.getCoverUrl()).isEqualTo("https://image.yes24.com/old.jpg");
+    }
+
+    private BookRegisterRequest withCover(String isbn, String coverUrl){
+        return new BookRegisterRequest(1L,"어린왕자","생택쥐페리",100,
+                isbn,null,null,
+                null,null,null,null,
+                null,coverUrl);
+    }
 }
