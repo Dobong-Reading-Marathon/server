@@ -26,6 +26,9 @@ public class BookService {
         if (!enrollmentRepository.existsByIdAndUserId(request.enrollmentId(), userId)) {
             throw ApiException.notFound("ENROLLMENT_NOT_FOUND", "참가 신청을 찾을 수 없습니다.");
         }
+        // 표지는 빈 문자열이면 null로 통일
+        String coverUrl = (request.coverUrl() == null || request.coverUrl().isBlank())
+                ? null : request.coverUrl().trim();
         // 1) 책 준비 : 같은 책이 있으면 재사용,없으면 새로 저장
         Book book = null;
 
@@ -33,6 +36,8 @@ public class BookService {
             Optional<Book> found = bookRepository.findByIsbn(request.isbn());
             if (found.isPresent()){
                 book = found.get();
+                // 기존 책에 표지가 없을 때만 새 표지로 채운다 (이미 있으면 유지)
+                book.fillCoverUrlIfAbsent(coverUrl);
             }
         }
 
@@ -44,7 +49,8 @@ public class BookService {
                     request.publisher(),
                     request.publishYear(),
                     request.totalPages(),
-                    Boolean.TRUE.equals(request.children())
+                    Boolean.TRUE.equals(request.children()),
+                    coverUrl
             ));
         }
         // 2) 중복 확인
@@ -68,4 +74,4 @@ public class BookService {
     public long countLoanBooks(Long enrollmentId){
         return enrollmentBookRepository.countByEnrollmentIdAndLibraryOwnedTrue(enrollmentId);
     }
-}
+}

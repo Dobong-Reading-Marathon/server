@@ -23,6 +23,9 @@ import lombok.AccessLevel;
 @NoArgsConstructor(access= AccessLevel.PROTECTED)
 
 public class Book {
+    // 표지 주소 최대 길이. DB books.cover_url VARCHAR(500)과 같아야 함
+    public static final int COVER_URL_MAX_LENGTH = 500;
+
     @Id // 필드 관리 번호
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -44,9 +47,13 @@ public class Book {
     private String publisher;
     private Integer publishYear;
 
+    // 표지 이미지 주소(예스24 검색 결과의 URL만 저장). 없으면 null
+    @Column(name="cover_url", length=COVER_URL_MAX_LENGTH)
+    private String coverUrl;
+
     // 책 만들때 쓰는 생성자 ( id 는 DB가 만들기 때문에 받지 않음)
     public Book(String isbn,String title,String author,String publisher,
-                Integer publishYear,Integer totalPages,boolean children){
+                Integer publishYear,Integer totalPages,boolean children,String coverUrl){
         this.isbn = isbn;
         this.title= title;
         this.author = author;
@@ -54,6 +61,14 @@ public class Book {
         this.publishYear = publishYear;
         this.totalPages = totalPages;
         this.children = children;
+        this.coverUrl = coverUrl;
+    }
+
+    // 표지가 아직 없을 때만 채운다. 이미 있으면 유지한다.
+    public void fillCoverUrlIfAbsent(String coverUrl){
+        if (this.coverUrl == null && coverUrl != null){
+            this.coverUrl = coverUrl;
+        }
     }
 
 }
