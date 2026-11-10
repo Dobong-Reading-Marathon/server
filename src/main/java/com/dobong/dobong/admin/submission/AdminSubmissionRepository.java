@@ -23,6 +23,27 @@ public interface AdminSubmissionRepository extends Repository<ReadingLog, Long> 
         LocalDate getReadDate();
         String getStatus();
         OffsetDateTime getSubmittedAt();
+        String getReview();
+        Integer getReviewLength();
+    }
+
+    // 기록 한 건 상세를 담는 그릇
+    interface DetailRow {
+        Long getId();
+        Long getEnrollmentId();
+        String getParticipantName();
+        String getBookTitle();
+        String getAuthor();
+        Integer getStartPage();
+        Integer getEndPage();
+        LocalDate getReadDate();
+        String getStatus();
+        String getQuote();
+        String getReview();
+        Integer getReviewLength();
+        String getLibrarianComment();
+        OffsetDateTime getSubmittedAt();
+        OffsetDateTime getReviewedAt();
     }
 
     // 상태/검색어는 "값이 있으면 적용, 없으면 무시"
@@ -34,7 +55,9 @@ public interface AdminSubmissionRepository extends Repository<ReadingLog, Long> 
                    rl.end_page     AS "endPage",
                    rl.read_date    AS "readDate",
                    rl.status       AS "status",
-                   rl.submitted_at AS "submittedAt"
+                   rl.submitted_at AS "submittedAt",
+                   rl.review       AS "review",
+                   COALESCE(char_length(rl.review), 0) AS "reviewLength"
             FROM reading_logs rl
             JOIN enrollment_books eb ON eb.id = rl.enrollment_book_id
             JOIN enrollments e       ON e.id = eb.enrollment_id
@@ -49,6 +72,33 @@ public interface AdminSubmissionRepository extends Repository<ReadingLog, Long> 
             """, nativeQuery = true)
     List<Row> search(@Param("status") String status,
                      @Param("keyword") String keywordPattern);
+
+    // 기록 한 건 상세. 접수함과 같은 기준으로 작성중, 저장 기록은 돌려주지 않는다
+    @Query(value = """
+            SELECT rl.id                AS "id",
+                   e.id                 AS "enrollmentId",
+                   u.name               AS "participantName",
+                   b.title              AS "bookTitle",
+                   b.author             AS "author",
+                   rl.start_page        AS "startPage",
+                   rl.end_page          AS "endPage",
+                   rl.read_date         AS "readDate",
+                   rl.status            AS "status",
+                   rl.quote             AS "quote",
+                   rl.review            AS "review",
+                   COALESCE(char_length(rl.review), 0) AS "reviewLength",
+                   rl.librarian_comment AS "librarianComment",
+                   rl.submitted_at      AS "submittedAt",
+                   rl.reviewed_at       AS "reviewedAt"
+            FROM reading_logs rl
+            JOIN enrollment_books eb ON eb.id = rl.enrollment_book_id
+            JOIN enrollments e       ON e.id = eb.enrollment_id
+            JOIN users u             ON u.id = e.user_id
+            JOIN books b             ON b.id = eb.book_id
+            WHERE rl.id = :id
+              AND rl.status NOT IN ('DRAFT', 'SAVED')
+            """, nativeQuery = true)
+    Optional<DetailRow> findDetail(@Param("id") Long id);
 
     // 심사 대기 건수
     @Query(value = "SELECT COUNT(*) FROM reading_logs WHERE status = 'SUBMITTED'",

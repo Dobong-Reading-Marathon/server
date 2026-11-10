@@ -1,11 +1,13 @@
 package com.dobong.dobong.admin.submission;
 
+import com.dobong.dobong.admin.submission.AdminSubmissionDtos.Detail;
 import com.dobong.dobong.admin.submission.AdminSubmissionDtos.InboxResponse;
 import com.dobong.dobong.admin.submission.AdminSubmissionDtos.Item;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -33,10 +35,20 @@ public class AdminSubmissionService {
         var items = repository.search(s, pattern).stream()
                 .map(r -> new Item(r.getId(), r.getParticipantName(), r.getBookTitle(),
                         r.getStartPage(), r.getEndPage(), r.getReadDate(),
-                        r.getStatus(), r.getSubmittedAt()))
+                        r.getStatus(), r.getSubmittedAt(), r.getReview(), r.getReviewLength()))
                 .toList();
 
         return new InboxResponse(repository.countPending(), items);
+    }
+
+    // 기록 한 건 상세. 없거나 접수함에 없는 상태(작성중, 저장)면 빈 값
+    public Optional<Detail> detail(Long id) {
+        return repository.findDetail(id)
+                .map(r -> new Detail(r.getId(), r.getEnrollmentId(), r.getParticipantName(),
+                        r.getBookTitle(), r.getAuthor(), r.getStartPage(), r.getEndPage(),
+                        r.getReadDate(), r.getStatus(), r.getQuote(), r.getReview(),
+                        r.getReviewLength(), r.getLibrarianComment(), r.getSubmittedAt(),
+                        r.getReviewedAt()));
     }
 
     // [02 추가] 승인

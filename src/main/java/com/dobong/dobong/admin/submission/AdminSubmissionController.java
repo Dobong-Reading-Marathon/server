@@ -32,6 +32,15 @@ public class AdminSubmissionController {
         return ResponseEntity.ok(service.inbox(status, keyword));
     }
 
+    // 기록 한 건 상세 (글귀, 서평 본문, 글자 수, 사서 코멘트)
+    @GetMapping("/api/admin/submissions/{id}")
+    public ResponseEntity<?> detail(@PathVariable Long id) {
+        return service.detail(id)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> error(HttpStatus.NOT_FOUND, "SUBMISSION_NOT_FOUND",
+                        "해당 기록을 찾을 수 없습니다."));
+    }
+
     // [02 추가] 승인
     @PostMapping("/api/admin/submissions/{id}/approve")
     public ResponseEntity<?> approve(@PathVariable Long id,
