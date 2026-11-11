@@ -1,0 +1,20 @@
+# 데모(시연) 서버 프로파일 (SPRING_PROFILES_ACTIVE=dev). Cloud Run에서 운영 서버와 같은 방식으로 띄웁니다.
+# prod와 다른 점
+# - 시연 회차(db/seed, 2026년 99회차)를 넣어 지금 바로 참가 신청을 해 볼 수 있습니다.
+# - 개인정보 처리방침 자리표시 검사(PlaceholderPolicyGuard)는 prod에서만 돌아서, 도서관 문안 전에도 서버가 뜹니다.
+# 실제 참가자를 받는 운영에는 쓰지 않습니다. 운영은 prod 프로파일과 별도 DB를 씁니다.
+server:
+  # Cloud Run이 PORT 환경변수로 포트를 줍니다. 없으면 8080
+  port: ${PORT:8080}
+  # Cloud Run 앞단 프록시가 붙인 X-Forwarded-For로 실제 접속 IP를 읽습니다. (가입·로그인 횟수 제한용)
+  forward-headers-strategy: framework
+  shutdown: graceful
+
+spring:
+  datasource:
+    hikari:
+      # 무료 DB의 동시 접속 수가 적어서 작게 둡니다. (Cloud Run 최대 인스턴스 1 기준)
+      maximum-pool-size: 5
+  flyway:
+    # 데모 서버에는 시연 회차(db/seed)도 넣습니다. prod 설정에는 넣지 않습니다.
+    locations: classpath:db/migration,classpath:db/seed
